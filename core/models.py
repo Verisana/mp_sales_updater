@@ -1,30 +1,14 @@
 from django.db import models
 
 
-class MarketPlaces(models.Model):
+class MarketPlace(models.Model):
     name = None
     created_at = None
     modified_at = None
     working_scheme = None
 
 
-class ItemCategories(models.Model):
-    name = None
-    mp_source = None
-    created_at = None
-    modified_at = None
-    mp_id = None
-
-
-class ItemSellers(models.Model):
-    name = None
-    mp_source = None
-    created_at = None
-    modified_at = None
-    categories = None
-
-
-class ItemBrands(models.Model):
+class ItemCategory(models.Model):
     name = None
     mp_source = None
     mp_id = None
@@ -33,31 +17,54 @@ class ItemBrands(models.Model):
     modified_at = None
 
 
-class Items(models.Model):
+class ItemSeller(models.Model):
     name = None
     mp_source = None
     categories = None
+
+    created_at = None
+    modified_at = None
+
+
+class ItemBrand(models.Model):
+    name = None
+    mp_source = None
+    mp_id = None
+
+    created_at = None
+    modified_at = None
+
+
+class Item(models.Model):
+    name = None
+    mp_source = None
+    category = None
     seller = None
     mp_id = None
     root_id = None
     brand = None
 
+    revision = None
+    day_sales_speed = None
+
     created_at = None
     modified_at = None
 
-    last_update = None
 
-    day_sales_speed = None
-
-
-
-class ItemUpdates(models.Model):
+class ItemImage(models.Model):
     item = None
+    item_revision = None
+    image = None
+
     created_at = None
+    modified_at = None
+
+
+class ItemRevision(models.Model):
+    item = None
 
     rating = None
-    coments_num = None
-    main_image = None
+    comments_num = None
     is_new = None
     is_bestseller = None
     is_digital = None
@@ -66,3 +73,6 @@ class ItemUpdates(models.Model):
     price = None
     sale_price = None
     available_qty = None
+
+    created_at = None
+    modified_at = None
