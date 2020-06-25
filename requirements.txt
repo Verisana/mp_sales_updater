@@ -3,3 +3,5 @@ aiohttp==3.6.2
 ipython==7.15
 psycopg2==2.8.5
 requests==2.24
+django-mptt==0.11
+pillow==7.1.2
