@@ -26,7 +26,7 @@ class MarketplaceScheme(models.Model):
 class Item(models.Model):
     name = models.CharField(max_length=256)
     mp_id = models.IntegerField()
-    root_id = models.IntegerField(blank=True)
+    root_id = models.IntegerField(blank=True, null=True)
     mp_source = models.ForeignKey('Marketplace', on_delete=models.SET_NULL, null=True, related_name='item')
     categories = models.ManyToManyField('ItemCategory', related_name='item')
     seller = models.ForeignKey('ItemSeller', on_delete=models.SET_NULL, null=True, blank=True, related_name='item')
@@ -48,7 +48,7 @@ class Item(models.Model):
 class ItemBrand(models.Model):
     name = models.CharField(max_length=128)
     mp_source = models.ForeignKey('Marketplace', on_delete=models.SET_NULL, null=True)
-    mp_id = models.IntegerField(blank=True)
+    mp_id = models.IntegerField(blank=True, null=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
     modified_at = models.DateTimeField(auto_now=True)
@@ -61,7 +61,7 @@ class ItemCategory(MPTTModel):
     name = models.CharField(max_length=128)
     parent = TreeForeignKey('self', on_delete=models.CASCADE, null=True, blank=True, related_name='children')
     mp_source = models.ForeignKey('Marketplace', on_delete=models.SET_NULL, null=True)
-    mp_id = models.IntegerField(blank=True)
+    mp_id = models.IntegerField(blank=True, null=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
     modified_at = models.DateTimeField(auto_now=True)
@@ -76,7 +76,7 @@ class ItemCategory(MPTTModel):
 class ItemColour(models.Model):
     name = models.CharField(max_length=128)
     mp_source = models.ForeignKey('Marketplace', on_delete=models.SET_NULL, null=True)
-    mp_id = models.IntegerField(blank=True)
+    mp_id = models.IntegerField(blank=True, null=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
     modified_at = models.DateTimeField(auto_now=True)
@@ -118,7 +118,7 @@ class ItemRevision(models.Model):
 class ItemSeller(models.Model):
     name = models.CharField(max_length=128)
     mp_source = models.ForeignKey('Marketplace', on_delete=models.SET_NULL, null=True)
-    mp_id = models.IntegerField(blank=True)
+    mp_id = models.IntegerField(blank=True, null=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
     modified_at = models.DateTimeField(auto_now=True)
@@ -130,7 +130,7 @@ class ItemSeller(models.Model):
 class ItemSize(models.Model):
     name = models.CharField(max_length=128)
     mp_source = models.ForeignKey('Marketplace', on_delete=models.SET_NULL, null=True)
-    mp_id = models.IntegerField(blank=True)
+    mp_id = models.IntegerField(blank=True, null=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
     modified_at = models.DateTimeField(auto_now=True)
