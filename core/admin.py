@@ -38,6 +38,7 @@ class ItemBrandAdmin(ModelAdminAllFieldsMixin, admin.ModelAdmin):
 class ItemCategoryAdmin(MPTTModelAdmin):
     pass
 
+
 @admin.register(ItemColour)
 class ItemColourAdmin(ModelAdminAllFieldsMixin, admin.ModelAdmin):
     pass
