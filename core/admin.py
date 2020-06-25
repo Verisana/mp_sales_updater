@@ -1,4 +1,5 @@
 from django.contrib import admin
+from mptt.admin import MPTTModelAdmin
 
 from .models import Marketplace, MarketplaceScheme, Item, ItemBrand, ItemCategory, ItemColour, ItemImage, \
                     ItemRevision, ItemSeller, ItemSize
@@ -6,59 +7,57 @@ from .models import Marketplace, MarketplaceScheme, Item, ItemBrand, ItemCategor
 
 class ModelAdminAllFieldsMixin(object):
     def __init__(self, model, admin_site):
-        self.list_display = [field.name for field in model._meta.fields if field.name != "id"]
-        self.fields = [field.name for field in model._meta.fields if field.name != "id"]
-        save_on_top = True
+        excluded = ['id', 'created_at', 'modified_at']
+        self.list_display = [field.name for field in model._meta.fields]
+        self.fields = [field.name for field in model._meta.fields if field.name not in excluded]
+        self.save_on_top = True
         super(ModelAdminAllFieldsMixin, self).__init__(model, admin_site)
 
 
+@admin.register(Marketplace)
 class MarketplaceAdmin(ModelAdminAllFieldsMixin, admin.ModelAdmin):
     pass
 
 
+@admin.register(MarketplaceScheme)
 class MarketplaceSchemeAdmin(ModelAdminAllFieldsMixin, admin.ModelAdmin):
     pass
 
 
+@admin.register(Item)
 class ItemAdmin(ModelAdminAllFieldsMixin, admin.ModelAdmin):
     pass
 
 
+@admin.register(ItemBrand)
 class ItemBrandAdmin(ModelAdminAllFieldsMixin, admin.ModelAdmin):
     pass
 
 
-class ItemCategoryAdmin(ModelAdminAllFieldsMixin, admin.ModelAdmin):
+@admin.register(ItemCategory)
+class ItemCategoryAdmin(MPTTModelAdmin):
     pass
 
-
+@admin.register(ItemColour)
 class ItemColourAdmin(ModelAdminAllFieldsMixin, admin.ModelAdmin):
     pass
 
 
+@admin.register(ItemImage)
 class ItemImageAdmin(ModelAdminAllFieldsMixin, admin.ModelAdmin):
     pass
 
 
+@admin.register(ItemRevision)
 class ItemRevisionAdmin(ModelAdminAllFieldsMixin, admin.ModelAdmin):
     pass
 
 
+@admin.register(ItemSeller)
 class ItemSellerAdmin(ModelAdminAllFieldsMixin, admin.ModelAdmin):
     pass
 
 
+@admin.register(ItemSize)
 class ItemSizeAdmin(ModelAdminAllFieldsMixin, admin.ModelAdmin):
     pass
-
-
-admin.site.register(Marketplace, MarketplaceAdmin)
-admin.site.register(MarketplaceScheme, MarketplaceSchemeAdmin)
-admin.site.register(Item, ItemAdmin)
-admin.site.register(ItemBrand, ItemBrandAdmin)
-admin.site.register(ItemCategory, ItemCategoryAdmin)
-admin.site.register(ItemColour, ItemColourAdmin)
-admin.site.register(ItemImage, ItemImageAdmin)
-admin.site.register(ItemRevision, ItemRevisionAdmin)
-admin.site.register(ItemSeller, ItemSellerAdmin)
-admin.site.register(ItemSize, ItemSizeAdmin)
