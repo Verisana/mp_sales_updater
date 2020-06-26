@@ -1,27 +1,20 @@
 from django.contrib import admin
 from mptt.admin import MPTTModelAdmin
 
-from .models import Marketplace, MarketplaceScheme, Item, Brand, ItemCategory, ItemColour, ItemImage, \
-                    ItemRevision, ItemSeller, ItemSize
+from .models import Marketplace, MarketplaceScheme, Item, ItemRevision, ItemCategory, ItemImage, \
+                    Brand, Colour, Seller, Size
 
 
 class ModelAdminAllFieldsMixin(object):
     def __init__(self, model, admin_site):
-        excluded = ['id', 'created_at', 'modified_at']
         self.list_display = [field.name for field in model._meta.fields]
-        self.fields = [field.name for field in model._meta.fields if field.name not in excluded]
         self.save_on_top = True
         super(ModelAdminAllFieldsMixin, self).__init__(model, admin_site)
 
 
-@admin.register(Brand)
-class BrandAdmin(ModelAdminAllFieldsMixin, admin.ModelAdmin):
-    pass
-
-
 @admin.register(Marketplace)
 class MarketplaceAdmin(ModelAdminAllFieldsMixin, admin.ModelAdmin):
-    pass
+    filter_horizontal = ('working_schemes',)
 
 
 @admin.register(MarketplaceScheme)
@@ -31,16 +24,16 @@ class MarketplaceSchemeAdmin(ModelAdminAllFieldsMixin, admin.ModelAdmin):
 
 @admin.register(Item)
 class ItemAdmin(ModelAdminAllFieldsMixin, admin.ModelAdmin):
+    filter_horizontal = ('categories',)
+
+
+@admin.register(ItemRevision)
+class ItemRevisionAdmin(ModelAdminAllFieldsMixin, admin.ModelAdmin):
     pass
 
 
 @admin.register(ItemCategory)
-class ItemCategoryAdmin(MPTTModelAdmin):
-    pass
-
-
-@admin.register(ItemColour)
-class ItemColourAdmin(ModelAdminAllFieldsMixin, admin.ModelAdmin):
+class ItemCategoryAdmin(ModelAdminAllFieldsMixin, MPTTModelAdmin):
     pass
 
 
@@ -49,16 +42,21 @@ class ItemImageAdmin(ModelAdminAllFieldsMixin, admin.ModelAdmin):
     pass
 
 
-@admin.register(ItemRevision)
-class ItemRevisionAdmin(ModelAdminAllFieldsMixin, admin.ModelAdmin):
+@admin.register(Brand)
+class BrandAdmin(ModelAdminAllFieldsMixin, admin.ModelAdmin):
     pass
 
 
-@admin.register(ItemSeller)
+@admin.register(Colour)
+class ColourAdmin(ModelAdminAllFieldsMixin, admin.ModelAdmin):
+    pass
+
+
+@admin.register(Seller)
 class ItemSellerAdmin(ModelAdminAllFieldsMixin, admin.ModelAdmin):
     pass
 
 
-@admin.register(ItemSize)
+@admin.register(Size)
 class ItemSizeAdmin(ModelAdminAllFieldsMixin, admin.ModelAdmin):
     pass

@@ -4,24 +4,13 @@ from django.db import models
 from mptt.models import MPTTModel, TreeForeignKey
 
 
-class Brand(models.Model):
-    name = models.CharField(max_length=128)
-    mp_source = models.ForeignKey('Marketplace', on_delete=models.CASCADE)
-    mp_id = models.IntegerField(blank=True, null=True)
-
-    created_at = models.DateTimeField(auto_now_add=True)
-    modified_at = models.DateTimeField(auto_now=True)
-
-    def __str__(self):
-        return self.name
-
-
 class Marketplace(models.Model):
     name = models.CharField(max_length=128, unique=True)
     working_schemes = models.ManyToManyField('MarketplaceScheme')
 
     created_at = models.DateTimeField(auto_now_add=True)
     modified_at = models.DateTimeField(auto_now=True)
+
     def __str__(self):
         return self.name
 
@@ -31,6 +20,7 @@ class MarketplaceScheme(models.Model):
 
     created_at = models.DateTimeField(auto_now_add=True)
     modified_at = models.DateTimeField(auto_now=True)
+
     def __str__(self):
         return self.name
 
@@ -41,8 +31,10 @@ class Item(models.Model):
     root_id = models.IntegerField(blank=True, null=True)
     mp_source = models.ForeignKey('Marketplace', on_delete=models.CASCADE, related_name='items')
     categories = models.ManyToManyField('ItemCategory', related_name='items')
-    seller = models.ForeignKey('ItemSeller', on_delete=models.CASCADE, blank=True, null=True, related_name='items')
+    seller = models.ForeignKey('Seller', on_delete=models.CASCADE, blank=True, null=True, related_name='items')
     brand = models.ForeignKey('Brand', on_delete=models.CASCADE, blank=True, null=True, related_name='items')
+    colour = models.ForeignKey('Colour', on_delete=models.CASCADE, blank=True, null=True, related_name='items')
+    size = models.ForeignKey('Size', on_delete=models.CASCADE, blank=True, null=True, related_name='items')
 
     latest_revision = models.OneToOneField('ItemRevision', on_delete=models.CASCADE,
                                            null=True, blank=True, related_name='items')
@@ -57,49 +49,6 @@ class Item(models.Model):
 
     def __str__(self):
         return self.name
-
-
-class ItemCategory(MPTTModel):
-    name = models.CharField(max_length=128)
-    parent = TreeForeignKey('self', on_delete=models.CASCADE, null=True, blank=True, related_name='children')
-    mp_source = models.ForeignKey('Marketplace', on_delete=models.CASCADE)
-    mp_id = models.IntegerField(blank=True, null=True)
-
-    created_at = models.DateTimeField(auto_now_add=True)
-    modified_at = models.DateTimeField(auto_now=True)
-
-    class MPTTMeta:
-        order_insertion_by = ['name']
-
-    class Meta:
-        verbose_name_plural = 'item categories'
-
-    def __str__(self):
-        return self.name
-
-
-class ItemColour(models.Model):
-    name = models.CharField(max_length=128)
-    mp_source = models.ForeignKey('Marketplace', on_delete=models.CASCADE)
-    mp_id = models.IntegerField(blank=True, null=True)
-    item = models.ForeignKey('Item', on_delete=models.CASCADE, related_name='item_colours')
-
-    created_at = models.DateTimeField(auto_now_add=True)
-    modified_at = models.DateTimeField(auto_now=True)
-
-    def __str__(self):
-        return self.name
-
-
-class ItemImage(models.Model):
-    image = models.ImageField(upload_to='item/')
-    item = models.ForeignKey('Item', on_delete=models.CASCADE, related_name='item_images')
-
-    created_at = models.DateTimeField(auto_now_add=True)
-    modified_at = models.DateTimeField(auto_now=True)
-
-    def __str__(self):
-        return self.image
 
 
 class ItemRevision(models.Model):
@@ -124,7 +73,37 @@ class ItemRevision(models.Model):
         return 'Revision_' + str(self.id) + ' ' + self.item.name
 
 
-class ItemSeller(models.Model):
+class ItemCategory(MPTTModel):
+    name = models.CharField(max_length=128)
+    parent = TreeForeignKey('self', on_delete=models.CASCADE, null=True, blank=True, related_name='children')
+    mp_source = models.ForeignKey('Marketplace', on_delete=models.CASCADE)
+    mp_id = models.IntegerField(blank=True, null=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    modified_at = models.DateTimeField(auto_now=True)
+
+    class MPTTMeta:
+        order_insertion_by = ['name']
+
+    class Meta:
+        verbose_name_plural = 'item categories'
+
+    def __str__(self):
+        return self.name
+
+
+class ItemImage(models.Model):
+    image = models.ImageField(upload_to='item/')
+    item = models.ForeignKey('Item', on_delete=models.CASCADE, related_name='item_images')
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    modified_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return self.image
+
+
+class Brand(models.Model):
     name = models.CharField(max_length=128)
     mp_source = models.ForeignKey('Marketplace', on_delete=models.CASCADE)
     mp_id = models.IntegerField(blank=True, null=True)
@@ -136,14 +115,37 @@ class ItemSeller(models.Model):
         return self.name
 
 
-class ItemSize(models.Model):
+class Colour(models.Model):
     name = models.CharField(max_length=128)
     mp_source = models.ForeignKey('Marketplace', on_delete=models.CASCADE)
     mp_id = models.IntegerField(blank=True, null=True)
-    item = models.ForeignKey('Item', on_delete=models.CASCADE, related_name='item_sizes')
 
     created_at = models.DateTimeField(auto_now_add=True)
     modified_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return self.name
+        return self.name + ' (' + self.mp_source.name + ')'
+
+
+class Seller(models.Model):
+    name = models.CharField(max_length=128)
+    mp_source = models.ForeignKey('Marketplace', on_delete=models.CASCADE)
+    mp_id = models.IntegerField(blank=True, null=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    modified_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return self.name + ' (' + self.mp_source.name + ')'
+
+
+class Size(models.Model):
+    name = models.CharField(max_length=128)
+    mp_source = models.ForeignKey('Marketplace', on_delete=models.CASCADE)
+    mp_id = models.IntegerField(blank=True, null=True)
+
+    created_at = models.DateTimeField(auto_now_add=True)
+    modified_at = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return self.name + ' (' + self.mp_source.name + ')'
