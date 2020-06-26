@@ -1,7 +1,7 @@
 from django.contrib import admin
 from mptt.admin import MPTTModelAdmin
 
-from .models import Marketplace, MarketplaceScheme, Item, ItemBrand, ItemCategory, ItemColour, ItemImage, \
+from .models import Marketplace, MarketplaceScheme, Item, Brand, ItemCategory, ItemColour, ItemImage, \
                     ItemRevision, ItemSeller, ItemSize
 
 
@@ -12,6 +12,11 @@ class ModelAdminAllFieldsMixin(object):
         self.fields = [field.name for field in model._meta.fields if field.name not in excluded]
         self.save_on_top = True
         super(ModelAdminAllFieldsMixin, self).__init__(model, admin_site)
+
+
+@admin.register(Brand)
+class BrandAdmin(ModelAdminAllFieldsMixin, admin.ModelAdmin):
+    pass
 
 
 @admin.register(Marketplace)
@@ -26,11 +31,6 @@ class MarketplaceSchemeAdmin(ModelAdminAllFieldsMixin, admin.ModelAdmin):
 
 @admin.register(Item)
 class ItemAdmin(ModelAdminAllFieldsMixin, admin.ModelAdmin):
-    pass
-
-
-@admin.register(ItemBrand)
-class ItemBrandAdmin(ModelAdminAllFieldsMixin, admin.ModelAdmin):
     pass
 
 
