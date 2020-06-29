@@ -1,3 +1,4 @@
+import re
 from typing import List, Dict
 
 from bs4 import BeautifulSoup
@@ -21,6 +22,7 @@ class WildberriesCategoryScraper:
             'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/83.0.4103.116 Safari/537.36',
             'x-requested-with': 'XMLHttpRequest',
         }
+        self.base_catalog_pattern = 'https:\/\/www.wildberries.ru\/catalog\/{}'
 
     def get_request_info(self) -> RequestBody:
         proxies = self.proxy_manager.get_proxy() if self.config.use_proxy else None
@@ -34,15 +36,24 @@ class WildberriesCategoryScraper:
     def compare_result_to_db(self, parsed: Node) -> bool:
         pass
 
-    def _fill_all_descendants(self, node: Node, bs: BeautifulSoup) -> Node:
-        for tag in bs.find('ul', {'data-menu-id': node.mp_id}).findAll('li'):
+    def _parse_all_descendants(self, all_categories: List[Node], level: str = '') -> List[Node]:
+        descedant_pattern = self.base_catalog_pattern.format(level + '[^\/\?]+')
+        descendants = [Node(tag.text, tag['href']) for tag in all_categories if re.fullmatch(descedant_pattern,
+                                                                                             tag['href'])]
 
+        for descendant_node in descendants:
+            level_start_idx = descendant_node.mp_url.rfind('/')
+            new_level = descendant_node.mp_url[level_start_idx+1:] + '/'
+            descendant_node.descendants.extend(self._parse_all_descendants(all_categories, level=new_level))
+
+        return descendants
 
     def parse_bs_response(self, bs: BeautifulSoup) -> List[Node]:
-        parsed_nodes = [Node(tag.text, tag['data-menu-id']) for tag in bs.find('ul', class_='topmenus').findAll('li')]
+        all_categories_pattern = self.base_catalog_pattern.format('[^\?].+')
+        all_categories = bs.findAll('a', href=re.compile(all_categories_pattern))
 
-        for node in parsed_nodes:
-            node.descendants.append(self._fill_all_descendants(node, bs))
+        parsed_nodes = self._parse_all_descendants(all_categories)
+
         return parsed_nodes
 
 
