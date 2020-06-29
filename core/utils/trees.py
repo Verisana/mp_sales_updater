@@ -1,6 +1,7 @@
 class Node:
-    def __init__(self, name, mp_id=None, db_id=None):
+    def __init__(self, name, mp_url=None, mp_id=None, db_id=None):
         self.name = name
+        self.mp_url = mp_url
         self.mp_id = mp_id
         self.db_id = db_id
         self.descendants = []
