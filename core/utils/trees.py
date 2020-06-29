@@ -1,11 +1,10 @@
 class Node:
-    def __init__(self, name, mp_url=None, mp_id=None, db_id=None):
-        self.name = name
+    def __init__(self, name, mp_url=None, root=None, db_id=None):
+        self.name = name.lower().strip(' ').strip('\n')
         self.mp_url = mp_url
-        self.mp_id = mp_id
-        self.db_id = db_id
         self.descendants = []
-        self.root = None
+        self.db_id = db_id
+        self.root = root
 
 
 def check_if_identical(descedants_1, descedants_2):

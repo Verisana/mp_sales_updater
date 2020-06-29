@@ -78,6 +78,7 @@ class ItemCategory(MPTTModel):
     parent = TreeForeignKey('self', on_delete=models.CASCADE, null=True, blank=True, related_name='children')
     mp_source = models.ForeignKey('Marketplace', on_delete=models.CASCADE)
     mp_id = models.IntegerField(blank=True, null=True)
+    is_deleted = models.BooleanField(default=False)
 
     created_at = models.DateTimeField(auto_now_add=True)
     modified_at = models.DateTimeField(auto_now=True)
