@@ -40,7 +40,7 @@ class Item(models.Model):
                                            null=True, blank=True, related_name='items')
 
     parse_frequency = models.DurationField(default=timedelta(hours=24))
-    last_parsed_time = models.DateTimeField(auto_now_add=True)
+    last_parsed_time = models.DateTimeField()
 
     is_deleted = models.BooleanField(default=False)
 
@@ -79,6 +79,7 @@ class ItemCategory(MPTTModel):
     mp_source = models.ForeignKey('Marketplace', on_delete=models.CASCADE)
     mp_id = models.IntegerField(blank=True, null=True)
     is_deleted = models.BooleanField(default=False)
+    mp_category_url = models.CharField(max_length=256, blank=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
     modified_at = models.DateTimeField(auto_now=True)
@@ -94,7 +95,8 @@ class ItemCategory(MPTTModel):
 
 
 class ItemImage(models.Model):
-    image = models.ImageField(upload_to='item/')
+    image = models.ImageField(upload_to='item/', blank=True)
+    mp_link = models.CharField(max_length=256, blank=True, unique=True)
     item = models.ForeignKey('Item', on_delete=models.CASCADE, related_name='item_images')
 
     created_at = models.DateTimeField(auto_now_add=True)
@@ -142,6 +144,7 @@ class Seller(models.Model):
 
 class Size(models.Model):
     name = models.CharField(max_length=128)
+    orig_name = models.CharField(max_length=128, blank=True)
     mp_source = models.ForeignKey('Marketplace', on_delete=models.CASCADE)
     mp_id = models.IntegerField(blank=True, null=True)
 
