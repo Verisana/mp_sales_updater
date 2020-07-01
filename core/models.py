@@ -40,7 +40,7 @@ class Item(models.Model):
                                            null=True, blank=True, related_name='items')
 
     parse_frequency = models.DurationField(default=timedelta(hours=24))
-    last_parsed_time = models.DateTimeField()
+    last_parsed_time = models.DateTimeField(null=True, blank=True)
 
     is_deleted = models.BooleanField(default=False)
 

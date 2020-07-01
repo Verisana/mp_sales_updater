@@ -35,12 +35,12 @@ class Connector:
                 if bs.text:
                     return bs, is_captcha
             elif request_info.parsing_type == 'json':
-                return self._parse_to_json(response, request_info)
+                json_result = self._parse_to_json(response, request_info)
+                if json_result:
+                    return json_result
             else:
                 print('Unrecognized type of parsing')
-
         print("All attempts to connect have been used")
-        return BeautifulSoup('', 'lxml'), False
 
     def _parse_to_bs(self, response: Response, request_info: RequestBody) -> (BeautifulSoup, bool):
         bs = BeautifulSoup('', 'lxml')
@@ -57,6 +57,8 @@ class Connector:
             loaded = json.loads(response.text)
         except json.JSONDecodeError as e:
             print(f'JSONDecoderError occurred in request {request_info} result: {response.text}')
+        except AttributeError as e:
+            pass
         return loaded
 
     def _send_request(self, request_info: RequestBody) -> Response:
