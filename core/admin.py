@@ -1,7 +1,7 @@
 from django.contrib import admin
 from mptt.admin import MPTTModelAdmin
 
-from .models import Marketplace, MarketplaceScheme, Item, ItemRevision, ItemCategory, ItemImage, \
+from .models import Marketplace, MarketplaceScheme, Item, ItemRevision, ItemCategory, Image, \
                     Brand, Colour, Seller, Size
 
 
@@ -37,7 +37,7 @@ class ItemCategoryAdmin(ModelAdminAllFieldsMixin, MPTTModelAdmin):
     pass
 
 
-@admin.register(ItemImage)
+@admin.register(Image)
 class ItemImageAdmin(ModelAdminAllFieldsMixin, admin.ModelAdmin):
     pass
 
