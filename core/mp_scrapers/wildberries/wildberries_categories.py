@@ -29,8 +29,8 @@ class WildberriesCategoryScraper:
         self.mp_source = self._get_mp_wb()
 
     def update_from_mp(self) -> None:
-        bs, is_captcha = self.connector.get_page(RequestBody(self.config.base_categories_url, 'get',
-                                                             headers=self.all_categories_headers))
+        bs, is_captcha, _ = self.connector.get_page(RequestBody(self.config.base_categories_url, 'get',
+                                                                headers=self.all_categories_headers))
         parsed_nodes = self._parse_bs_response(bs)
         with open('parsed_nodes.p', 'wb') as f:
             pickle.dump(parsed_nodes, f)
@@ -94,7 +94,7 @@ class WildberriesCategoryScraper:
                     print(f'\t{i+1}/{len(nodes)} - {node.name}, time: {hour:00.0f}:{minute:00.0f}:{second:00.0f}, '
                           f'level {level}')
             # Прям до сюда
-            descendants_bs, is_captcha = self.connector.get_page(RequestBody(node.mp_url, 'get'))
+            descendants_bs, is_captcha, _ = self.connector.get_page(RequestBody(node.mp_url, 'get'))
 
             if level == 0:
                 try:
@@ -149,7 +149,7 @@ class WildberriesCategoryScraper:
                                                                           mp_source=self.mp_source,
                                                                           parent=parent)
             else:
-                # If you don't specify level, you get multiple objects because
+                # If you don't specify level, you get multiple object exception
                 category, is_created = ItemCategory.objects.get_or_create(name=parsed_node.name,
                                                                           mp_source=self.mp_source,
                                                                           level=0)

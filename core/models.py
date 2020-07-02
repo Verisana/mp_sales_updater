@@ -30,7 +30,8 @@ class Item(models.Model):
     mp_id = models.IntegerField()
     root_id = models.IntegerField(blank=True, null=True)
     mp_source = models.ForeignKey('Marketplace', on_delete=models.CASCADE, related_name='items')
-    categories = models.ManyToManyField('ItemCategory', related_name='items')
+    categories = models.ManyToManyField('ItemCategory', blank=True, related_name='items')
+    images = models.ManyToManyField('Image', blank=True, related_name='items')
     seller = models.ForeignKey('Seller', on_delete=models.CASCADE, blank=True, null=True, related_name='items')
     brand = models.ForeignKey('Brand', on_delete=models.CASCADE, blank=True, null=True, related_name='items')
     colour = models.ForeignKey('Colour', on_delete=models.CASCADE, blank=True, null=True, related_name='items')
@@ -94,16 +95,16 @@ class ItemCategory(MPTTModel):
         return self.name
 
 
-class ItemImage(models.Model):
+class Image(models.Model):
     image = models.ImageField(upload_to='item/', blank=True)
-    mp_link = models.CharField(max_length=256, blank=True, unique=True)
-    item = models.ForeignKey('Item', on_delete=models.CASCADE, related_name='item_images')
+    mp_link = models.CharField(max_length=256, unique=True)
+    mp_source = models.ForeignKey('Marketplace', on_delete=models.CASCADE)
 
     created_at = models.DateTimeField(auto_now_add=True)
     modified_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return self.image
+        return self.mp_link
 
 
 class Brand(models.Model):

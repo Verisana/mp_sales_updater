@@ -27,13 +27,13 @@ class Connector:
                 return True
         return False
 
-    def get_page(self, request_info: RequestBody) -> Union[Tuple[BeautifulSoup, bool], Dict]:
+    def get_page(self, request_info: RequestBody) -> Union[Tuple[BeautifulSoup, bool, int], Dict]:
         for i in range(self.try_count):
             response = self._send_request(request_info)
             if request_info.parsing_type == 'bs':
                 bs, is_captcha = self._parse_to_bs(response, request_info)
                 if bs.text:
-                    return bs, is_captcha
+                    return bs, is_captcha, response.status_code
             elif request_info.parsing_type == 'json':
                 json_result = self._parse_to_json(response, request_info)
                 if json_result:
@@ -66,8 +66,8 @@ class Connector:
         response = None
         try:
             response = requests.request(request_info.method, request_info.url, headers=request_info.headers,
-                                        proxies=proxies, params=request_info.params)
+                                        proxies=proxies, params=request_info.params, timeout=5)
             response.raise_for_status()
-        except (requests.exceptions.BaseHTTPError, requests.exceptions.ProxyError) as e:
+        except requests.exceptions.RequestException as e:
             print(f'Requests error: {e}')
         return response
