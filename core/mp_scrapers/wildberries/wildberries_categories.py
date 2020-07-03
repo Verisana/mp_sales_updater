@@ -25,7 +25,7 @@ class WildberriesCategoryScraper:
                           'Chrome/83.0.4103.116 Safari/537.36',
             'x-requested-with': 'XMLHttpRequest',
         }
-        self.base_catalog_pattern = 'https:\/\/www.wildberries.ru\/catalog\/{}'
+        self.base_catalog_pattern = 'https://www.wildberries.ru/catalog/{}'
         self.mp_source = self._get_mp_wb()
 
     def update_from_mp(self) -> None:
@@ -42,7 +42,8 @@ class WildberriesCategoryScraper:
         self._save_all_results_in_db(parsed_nodes)
         self._check_db_consistency()
 
-    def _get_mp_wb(self) -> Marketplace:
+    @staticmethod
+    def _get_mp_wb() -> Marketplace:
         scheme_qs = MarketplaceScheme.objects.get_or_create(name='FBM')[0]
         mp_wildberries, is_created = Marketplace.objects.get_or_create(name='Wildberries')
         if is_created:
@@ -74,11 +75,11 @@ class WildberriesCategoryScraper:
         4. Exclude not root links. For example: .../catalog/detyam/shkola
         """
         return tag.name == 'li' and \
-               len(tag['class']) == 2 and \
-               ' '.join(tag['class']) == 'topmenus-item j-parallax-back-layer-item' and \
-               re.fullmatch(self.base_catalog_pattern.format('[^\/\?]+'), tag.find('a')['href'])
+            len(tag['class']) == 2 and \
+            ' '.join(tag['class']) == 'topmenus-item j-parallax-back-layer-item' and \
+            re.fullmatch(self.base_catalog_pattern.format('[^/?]+'), tag.find('a')['href'])
 
-    def _parse_all_descendants(self, nodes: List[Node], level: int = 0, root: Node = None) -> List[Node]:
+    def _parse_all_descendants(self, nodes: List[Node], level: int = 0) -> List[Node]:
         for i, node in enumerate(nodes):
             # Для отладки
             if level in [0, 1]:
@@ -88,10 +89,10 @@ class WildberriesCategoryScraper:
                 minute = datetime.datetime.fromtimestamp(time.time()).minute
                 second = datetime.datetime.fromtimestamp(time.time()).second
                 if level == 0:
-                    print(f'{i+1}/{len(nodes)} - {node.name}, time: {hour:00.0f}:{minute:00.0f}:{second:00.0f}, '
+                    print(f'{i + 1}/{len(nodes)} - {node.name}, time: {hour:00.0f}:{minute:00.0f}:{second:00.0f}, '
                           f'level {level}')
                 elif level == 1:
-                    print(f'\t{i+1}/{len(nodes)} - {node.name}, time: {hour:00.0f}:{minute:00.0f}:{second:00.0f}, '
+                    print(f'\t{i + 1}/{len(nodes)} - {node.name}, time: {hour:00.0f}:{minute:00.0f}:{second:00.0f}, '
                           f'level {level}')
             # Прям до сюда
             descendants_bs, is_captcha, _ = self.connector.get_page(RequestBody(node.mp_url, 'get'))
@@ -108,7 +109,7 @@ class WildberriesCategoryScraper:
             else:
                 try:
                     all_items = descendants_bs.find('div', class_='catalog-sidebar').findAll('li')
-                except AttributeError as e:
+                except AttributeError:
                     continue
 
                 is_descendants_started = False
@@ -123,7 +124,7 @@ class WildberriesCategoryScraper:
                     if is_descendants_started:
                         url = self.config.base_url + item.find('a')['href']
                         node.descendants.append(self._get_node(item.text, url, node, level))
-            self._parse_all_descendants(node.descendants, level+1)
+            self._parse_all_descendants(node.descendants, level + 1)
         return nodes
 
     def _get_node(self, name: str, url: str, parent: Node, level: int) -> Node:
@@ -140,7 +141,7 @@ class WildberriesCategoryScraper:
         return category.id
 
     def _check_db_consistency(self) -> None:
-        return None
+        pass
 
     def _save_all_results_in_db(self, parsed_nodes: List[Node], parent: TreeQuerySet = None) -> None:
         for parsed_node in parsed_nodes:
