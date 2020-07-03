@@ -35,7 +35,8 @@ class Item(models.Model):
     seller = models.ForeignKey('Seller', on_delete=models.CASCADE, blank=True, null=True, related_name='items')
     brand = models.ForeignKey('Brand', on_delete=models.CASCADE, blank=True, null=True, related_name='items')
     colour = models.ForeignKey('Colour', on_delete=models.CASCADE, blank=True, null=True, related_name='items')
-    size = models.ForeignKey('Size', on_delete=models.CASCADE, blank=True, null=True, related_name='items')
+    size_name = models.CharField(max_length=128, blank=True, null=True)
+    size_orig_name = models.CharField(max_length=128, blank=True, null=True)
 
     latest_revision = models.OneToOneField('ItemRevision', on_delete=models.CASCADE,
                                            null=True, blank=True, related_name='items')
@@ -133,19 +134,6 @@ class Colour(models.Model):
 
 class Seller(models.Model):
     name = models.CharField(max_length=128)
-    mp_source = models.ForeignKey('Marketplace', on_delete=models.CASCADE)
-    mp_id = models.IntegerField(blank=True, null=True)
-
-    created_at = models.DateTimeField(auto_now_add=True)
-    modified_at = models.DateTimeField(auto_now=True)
-
-    def __str__(self):
-        return self.name + ' (' + self.mp_source.name + ')'
-
-
-class Size(models.Model):
-    name = models.CharField(max_length=128)
-    orig_name = models.CharField(max_length=128, blank=True)
     mp_source = models.ForeignKey('Marketplace', on_delete=models.CASCADE)
     mp_id = models.IntegerField(blank=True, null=True)
 

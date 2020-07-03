@@ -2,7 +2,7 @@ from django.contrib import admin
 from mptt.admin import MPTTModelAdmin
 
 from .models import Marketplace, MarketplaceScheme, Item, ItemRevision, ItemCategory, Image, \
-                    Brand, Colour, Seller, Size
+                    Brand, Colour, Seller
 
 
 class ModelAdminAllFieldsMixin(object):
@@ -54,9 +54,4 @@ class ColourAdmin(ModelAdminAllFieldsMixin, admin.ModelAdmin):
 
 @admin.register(Seller)
 class ItemSellerAdmin(ModelAdminAllFieldsMixin, admin.ModelAdmin):
-    pass
-
-
-@admin.register(Size)
-class ItemSizeAdmin(ModelAdminAllFieldsMixin, admin.ModelAdmin):
     pass

@@ -1,9 +1,9 @@
 import time
 from typing import List, Dict, Tuple, Set, Union, Any, Callable
-from itertools import product
 from datetime import timedelta
 from collections import defaultdict
 
+from django.db.models.base import ModelBase
 from django.utils.timezone import now
 from bs4 import BeautifulSoup
 from bs4.element import Tag
@@ -11,7 +11,7 @@ from bs4.element import Tag
 from core.mp_scrapers.configs import WILDBERRIES_CONFIG
 from core.utils.connector import Connector
 from core.types import RequestBody
-from core.models import Marketplace, MarketplaceScheme, ItemCategory, Item, Brand, Colour, Size, Image
+from core.models import Marketplace, MarketplaceScheme, ItemCategory, Item, Brand, Colour, Image
 
 
 class WildberriesItemScraper:
@@ -19,11 +19,6 @@ class WildberriesItemScraper:
         self.config = WILDBERRIES_CONFIG
         self.connector = Connector(use_proxy=self.config.use_proxy)
         self.mp_source = self._get_mp_wb()
-
-        # nt - namedtuple
-        # self.brand_nt = namedtuple('Brand', ['name', 'mp_id'])
-        # self.colour_nt = namedtuple('Colour', ['name', 'mp_id'])
-        # self.size_nt = namedtuple('Size', ['name', 'orig_name', 'mp_id'])
 
     def update_from_mp(self) -> None:
         self._increment_item_update(start_from=1)
@@ -99,32 +94,33 @@ class WildberriesItemScraper:
                 return self._get_max_in_bounds(min_id, middle - 1)
 
     def _add_items_to_db(self, items: List[Dict]) -> List[Item]:
-        brand_id_to_idx, colour_id_to_idx, size_id_to_idx, items_info = self._aggregate_info_from_items(items)
+        brand_id_to_idx, colour_id_to_idx, items_info = self._aggregate_info_from_items(items)
 
         self._fill_nones_in_items(brand_id_to_idx, items_info, Brand, 'brand', 'mp_id')
         self._fill_nones_in_items(colour_id_to_idx, items_info, Colour, 'colour', 'mp_id')
-        self._fill_nones_in_items(size_id_to_idx, items_info, Size, 'size', ['name', 'orig_name'])
 
         last_parsed_time = now() - timedelta(days=1)
         new_items, old_items = [], []
         for item in items_info:
-            params = {'name': item['name'], 'mp_id': item['mp_id'], 'mp_source': self.mp_source,
-                      'root_id': item['root_id'], 'brand': item['brand'], 'colour': item['colour'],
-                      'size': item['size']}
+            create_params = {'name': item['name'], 'mp_id': item['mp_id'], 'mp_source': self.mp_source,
+                             'root_id': item['root_id'], 'brand': item['brand'], 'colour': item['colour'],
+                             'size_name': item['size_name'], 'size_orig_name': item['size_orig_name']}
+            get_params = {'name': item['name'], 'mp_id': item['mp_id'], 'mp_source': self.mp_source,
+                          'root_id': item['root_id'], 'brand': item['brand'], 'colour': item['colour']}
             try:
-                old_items.append(Item.objects.get(**params))
+                old_items.append(Item.objects.get(**get_params))
                 old_items[-1].last_parsed_time = last_parsed_time
             except Item.DoesNotExist:
-                new_items.append(Item(**params))
-            # except Item.MultipleObjectsReturned:
-            #    repeating_items = Item.objects.filter(**params)
-            #    for item in repeating_items[1:]:
-            #        item.delete()
-            #    old_items.append(repeating_items[0])
-            #    old_items[-1].last_parsed_time = last_parsed_time
+                new_items.append(Item(**create_params))
+            except Item.MultipleObjectsReturned:
+                repeating_items = Item.objects.filter(**get_params)
+                for repeating_item in repeating_items[1:]:
+                    repeating_item.delete()
+                old_items.append(repeating_items[0])
+                old_items[-1].last_parsed_time = last_parsed_time
 
         if old_items:
-            old_items = Item.objects.bulk_update(old_items, ['last_parsed_time'])
+            Item.objects.bulk_update(old_items, ['last_parsed_time'])
 
         if new_items:
             new_items = Item.objects.bulk_create(new_items)
@@ -134,35 +130,25 @@ class WildberriesItemScraper:
 
         return old_items + new_items
 
-    def _aggregate_info_from_items(self, items: List[Dict]) -> Tuple[
-        Dict[Union[str, int], List[int]], Dict[Union[str, int], List[int]], Dict[Union[str, int], List[int]], List[
-            Dict]]:
-        brand_id_to_idx, colour_id_to_idx = defaultdict(list), defaultdict(list)
-        size_id_to_idx, items_info = defaultdict(list), []
+    def _aggregate_info_from_items(self, items: List[Dict]) -> Tuple[Dict[Union[str, int], List[int]],
+                                                                     Dict[Union[str, int], List[int]], List[Dict]]:
+        brand_id_to_idx, colour_id_to_idx, items_info = defaultdict(list), defaultdict(list), []
         for item in items:
-            if len(item['colors']) > 0 and len(item['sizes']) > 0:
-                for colour, size in product(item['colors'], item['sizes']):
-                    self._fill_objects(brand_id_to_idx, colour_id_to_idx, size_id_to_idx, items_info, item, colour,
-                                       size)
-            elif len(item['colors']) > 0 and len(item['sizes']) == 0:
+            if item['colors']:
                 for colour in item['colors']:
-                    self._fill_objects(brand_id_to_idx, colour_id_to_idx, size_id_to_idx,
-                                       items_info, item, colour=colour, size=None)
-            elif len(item['colors']) == 0 and len(item['sizes']) > 0:
-                for size in item['sizes']:
-                    self._fill_objects(brand_id_to_idx, colour_id_to_idx, size_id_to_idx,
-                                       items_info, item, colour=None, size=size)
-            elif len(item['colors']) == 0 and len(item['sizes']) == 0:
-                self._fill_objects(brand_id_to_idx, colour_id_to_idx, size_id_to_idx,
-                                   items_info, item, colour=None, size=None)
-        return brand_id_to_idx, colour_id_to_idx, size_id_to_idx, items_info
+                    self._fill_objects(brand_id_to_idx, colour_id_to_idx, items_info, item, colour)
+            else:
+                self._fill_objects(brand_id_to_idx, colour_id_to_idx, items_info, item, colour=None)
+        return brand_id_to_idx, colour_id_to_idx, items_info
 
     def _fill_objects(self, brand_id_to_idx: Dict[Union[str, int], List[int]],
-                      colour_id_to_idx: Dict[Union[str, int], List[int]],
-                      size_id_to_idx: Dict[Union[str, int], List[int]], items_info: List[Dict], item: Dict,
-                      colour: Union[Dict, None], size: Union[Dict, None]) -> None:
+                      colour_id_to_idx: Dict[Union[str, int], List[int]], items_info: List[Dict], item: Dict,
+                      colour: Union[Dict, None]) -> None:
         new_item_info = {'name': item['name'], 'mp_id': item['id'], 'root_id': item['root'], 'brand': None,
-                         'colour': None, 'size': None}
+                         'colour': None, 'size_name': '', 'size_orig_name': ''}
+        if item['sizes']:
+            new_item_info['size_name'] = item['sizes'][0]['name']
+            new_item_info['size_orig_name'] = item['sizes'][0]['origName']
         items_info.append(new_item_info)
 
         brand_params = {'name': item['brand'], 'mp_source': self.mp_source, 'mp_id': item['brandId']}
@@ -172,13 +158,9 @@ class WildberriesItemScraper:
             colour_params = {'name': colour['name'], 'mp_source': self.mp_source, 'mp_id': colour['id']}
             self._prepare_model(items_info, colour_id_to_idx, Colour, colour_params, 'colour', 'mp_id')
 
-        if size:
-            size_params = {'name': size['name'], 'mp_source': self.mp_source, 'orig_name': size['origName']}
-            self._prepare_model(items_info, size_id_to_idx, Size, size_params, 'size', ['name', 'orig_name'])
-
     @staticmethod
     def _prepare_model(to_fill: List[Dict], fill_id_to_idx: Dict[Union[str, int], List[int]],
-                       model: Union[Brand, Colour, Size, Callable], params: Dict[str, Any], model_name: str,
+                       model: Union[Brand, Colour, Callable], params: Dict[str, Any], model_name: str,
                        field_for_ident: Union[str, List[str]]) -> None:
         try:
             to_fill[-1][model_name] = model.objects.get(**params)
@@ -189,15 +171,15 @@ class WildberriesItemScraper:
             else:
                 field_name = ' '.join([params[name] for name in field_for_ident])
                 fill_id_to_idx[field_name].append(len(to_fill) - 1)
-        # except model.MultipleObjectsReturned:
-        #    repeating_items = model.objects.filter(**params)
-        #    to_fill[-1][model_name] = repeating_items[0]
-        #    for item in repeating_items[1:]:
-        #        item.delete()
+        except model.MultipleObjectsReturned:
+            repeating_items = model.objects.filter(**params)
+            to_fill[-1][model_name] = repeating_items[0]
+            for repeating_item in repeating_items[1:]:
+                repeating_item.delete()
 
     @staticmethod
     def _fill_nones_in_items(id_to_idx: Dict[Union[str, int], List[int]],
-                             items_info: List[Dict], model: Union[Brand, Colour, Size], model_name: str,
+                             items_info: List[Dict], model: Union[ModelBase, Brand, Colour], model_name: str,
                              field_to_ident: Union[str, List[str]]) -> None:
         new_models = [items_info[idxs[0]][model_name] for idxs in id_to_idx.values()]
         new_models = model.objects.bulk_create(new_models)
