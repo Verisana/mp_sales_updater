@@ -121,30 +121,21 @@ class WildberriesItemScraper:
             create_params = {'name': item['name'], 'mp_id': item['mp_id'], 'mp_source': self.mp_source,
                              'root_id': item['root_id'], 'brand': item['brand'], 'colour': item['colour'],
                              'size_name': item['size_name'], 'size_orig_name': item['size_orig_name'],
-                             'seller': item['sellerName']}
-            get_params = {'name': item['name'], 'mp_id': item['mp_id'], 'mp_source': self.mp_source,
-                          'root_id': item['root_id'], 'brand': item['brand'], 'colour': item['colour'],
-                          'seller': item['sellerName']}
+                             'seller': item['seller'], 'last_parsed_time': last_parsed_time}
+            get_params = {'mp_id': item['mp_id'], 'mp_source': self.mp_source}
             try:
-                old_items.append(Item.objects.get(**get_params))
-                old_items[-1].last_parsed_time = last_parsed_time
+                filtered_items = Item.objects.filter(**get_params)
+                old_items.extend(filtered_items)
+                for filtered_item in old_items[-len(filtered_items):]:
+                    filtered_item.last_parsed_time = last_parsed_time
             except Item.DoesNotExist:
                 new_items.append(Item(**create_params))
-            except Item.MultipleObjectsReturned:
-                repeating_items = Item.objects.filter(**get_params)
-                for repeating_item in repeating_items[1:]:
-                    repeating_item.delete()
-                old_items.append(repeating_items[0])
-                old_items[-1].last_parsed_time = last_parsed_time
 
         if old_items:
             Item.objects.bulk_update(old_items, ['last_parsed_time'])
 
         if new_items:
             new_items = Item.objects.bulk_create(new_items)
-            for item in new_items:
-                item.last_parsed_time = last_parsed_time
-            Item.objects.bulk_update(new_items, ['last_parsed_time'])
 
         return old_items + new_items
 
@@ -158,14 +149,14 @@ class WildberriesItemScraper:
                 for colour in item['colors']:
                     self._fill_objects(brand_id_to_idx, colour_id_to_idx, seller_id_to_idx, items_info, item, colour)
             else:
-                colour = {'name': '', 'mp_id': None}
+                colour = {'name': ''}
                 self._fill_objects(brand_id_to_idx, colour_id_to_idx, seller_id_to_idx, items_info, item, colour)
         return brand_id_to_idx, colour_id_to_idx, seller_id_to_idx, items_info
 
     def _fill_objects(self, brand_id_to_idx: Dict[Union[str, int], List[int]],
                       colour_id_to_idx: Dict[Union[str, int], List[int]],
                       seller_id_to_idx: Dict[Union[str, int], List[int]], items_info: List[Dict], item: Dict,
-                      colour: Union[Dict, None]) -> None:
+                      colour: Dict) -> None:
         new_item_info = {'name': item['name'], 'mp_id': item['id'], 'root_id': item['root'], 'brand': None,
                          'colour': None, 'size_name': '', 'size_orig_name': '', 'seller': None}
         if item['sizes']:
@@ -173,13 +164,16 @@ class WildberriesItemScraper:
             new_item_info['size_orig_name'] = item['sizes'][0]['origName']
         items_info.append(new_item_info)
 
-        brand_params = {'name': item['brand'], 'mp_source': self.mp_source, 'mp_id': item['brandId']}
+        brand_name = item.get('brand') if item.get('brand') is not None else ''
+        brand_params = {'name': brand_name, 'mp_source': self.mp_source, 'mp_id': item.get('brandId')}
         self._prepare_model(items_info, brand_id_to_idx, Brand, brand_params, 'brand', 'mp_id')
 
-        seller_params = {'name': item['sellerName'], 'mp_source_id': self.mp_source.id}
+        seller_name = item.get('sellerName') if item.get('sellerName') is not None else ''
+        seller_params = {'name': seller_name, 'mp_source_id': self.mp_source.id}
         self._prepare_model(items_info, seller_id_to_idx, Seller, seller_params, 'seller', ['name', 'mp_source_id'])
 
-        colour_params = {'name': colour['name'], 'mp_source': self.mp_source, 'mp_id': colour['id']}
+        colour_name = colour.get('name') if colour.get('name') is not None else ''
+        colour_params = {'name': colour_name, 'mp_source': self.mp_source, 'mp_id': colour.get('id')}
         self._prepare_model(items_info, colour_id_to_idx, Colour, colour_params, 'colour', 'mp_id')
 
     @staticmethod
