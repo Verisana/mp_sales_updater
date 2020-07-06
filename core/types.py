@@ -8,6 +8,7 @@ class ScraperConfigs:
     base_categories_url: str
     base_catalog_url: str
     item_url: str
+    seller_url: str
     revision_url: str
     bulk_item_step: int
     use_proxy: bool
