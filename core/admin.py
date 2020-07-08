@@ -24,7 +24,7 @@ class MarketplaceSchemeAdmin(ModelAdminAllFieldsMixin, admin.ModelAdmin):
 
 @admin.register(Item)
 class ItemAdmin(ModelAdminAllFieldsMixin, admin.ModelAdmin):
-    filter_horizontal = ('categories',)
+    filter_horizontal = ('categories', 'images')
 
 
 @admin.register(ItemRevision)
@@ -34,7 +34,7 @@ class ItemRevisionAdmin(ModelAdminAllFieldsMixin, admin.ModelAdmin):
 
 @admin.register(ItemCategory)
 class ItemCategoryAdmin(ModelAdminAllFieldsMixin, MPTTModelAdmin):
-    pass
+    search_fields = ['id']
 
 
 @admin.register(Image)
