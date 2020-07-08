@@ -334,7 +334,8 @@ class WildberriesItemScraper:
                         break
             return self._get_category_from_name(descendant_name, parent_name, parent_parent_name)
 
-    def _get_category_from_name(self, name: str, parent: str, parent_parent: str) -> ItemCategory:
+    @staticmethod
+    def _get_category_from_name(name: str, parent: str, parent_parent: str) -> ItemCategory:
         if name != '':
             params = {'name': name.lower()}
             if parent != '':
