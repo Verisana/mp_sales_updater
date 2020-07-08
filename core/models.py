@@ -98,7 +98,7 @@ class ItemCategory(MPTTModel):
 
 
 class Image(models.Model):
-    image = models.ImageField(upload_to='item/', blank=True)
+    image_file = models.ImageField(upload_to='item/', blank=True)
     mp_link = models.CharField(max_length=256, unique=True)
     mp_source = models.ForeignKey('Marketplace', on_delete=models.CASCADE)
 

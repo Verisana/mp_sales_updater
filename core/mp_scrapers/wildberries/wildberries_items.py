@@ -1,5 +1,5 @@
 import time
-from typing import List, Dict, Tuple, Set, Union, Any, Callable
+from typing import List, Dict, Tuple, Set, Union, Any, Callable, Generator
 from datetime import timedelta
 from collections import defaultdict
 
@@ -15,6 +15,8 @@ from core.models import Marketplace, MarketplaceScheme, ItemCategory, Item, Bran
 
 
 class WildberriesItemScraper:
+    xmlhttp_header: Dict[str, str]
+
     def __init__(self):
         self.config = WILDBERRIES_CONFIG
         self.connector = Connector(use_proxy=self.config.use_proxy)
@@ -26,8 +28,8 @@ class WildberriesItemScraper:
         }
 
     def update_from_mp(self) -> None:
-        self._increment_item_update(start_from=1)
-        self._in_category_update()
+        # self._increment_item_update(start_from=13100000)
+        # self._in_category_update()
         self._individual_item_update()
 
     @staticmethod
@@ -46,24 +48,31 @@ class WildberriesItemScraper:
 
         start = time.time()
         for i in range(start_from, max_item_id + 1, self.config.bulk_item_step):
-            print(f'{i} elapsed {(time.time() - start):0.0f} seconds')
-            start = time.time()
-
             indexes_to_request = list(range(i, min(max_item_id + 1, i + self.config.bulk_item_step)))
             items_result = self._get_item_or_seller_info(indexes_to_request, self.config.item_url, ';', )
             sellers_result = self._get_item_or_seller_info(indexes_to_request,
                                                            self.config.seller_url, ',', is_special_header=True)
 
-            if items_result['state'] == 0 and sellers_result['resultState'] == 0:
+            if items_result['state'] == 0 and sellers_result['resultState'] == 0 and items_result['data']['products']:
                 seller_id_to_name = {i['cod1S']: i['supplierName'] for i in sellers_result['value']}
                 for item in items_result['data']['products']:
                     item['sellerName'] = seller_id_to_name.get(item['id'])
                 self._add_items_to_db(items_result['data']['products'])
-            elif items_result['state'] == 0:
+            elif items_result['state'] == 0 and items_result['data']['products']:
                 print(f'Error result in {i}: {sellers_result}')
                 self._add_items_to_db(items_result['data']['products'])
+            elif not items_result['data']['products']:
+                print(f'Items response is empty: {items_result}')
             else:
                 print(f'Error result in {i}: {items_result}')
+
+            print(f'{i} elapsed {(time.time() - start):0.0f} seconds')
+            start = time.time()
+
+            # For TESTING!!!!!!!!
+            if i > start_from + (self.config.bulk_item_step * 10):
+                break
+            # !!!!!!!!!!!!!!!!!!!!!!!
 
     def _get_max_item_id(self) -> int:
         try:
@@ -106,7 +115,9 @@ class WildberriesItemScraper:
         indexes = sep.join(map(str, indexes))
         url = url.format(indexes)
         headers = self.xmlhttp_header if is_special_header else None
-        return self.connector.get_page(RequestBody(url, method='get', parsing_type='json', headers=headers))
+        json_result, _, _ = self.connector.get_page(RequestBody(url,
+                                                                method='get', parsing_type='json', headers=headers))
+        return json_result
 
     def _add_items_to_db(self, items: List[Dict]) -> List[Item]:
         brand_id_to_idx, colour_id_to_idx, seller_id_to_idx, items_info = self._aggregate_info_from_items(items)
@@ -123,12 +134,13 @@ class WildberriesItemScraper:
                              'size_name': item['size_name'], 'size_orig_name': item['size_orig_name'],
                              'seller': item['seller'], 'last_parsed_time': last_parsed_time}
             get_params = {'mp_id': item['mp_id'], 'mp_source': self.mp_source}
-            try:
-                filtered_items = Item.objects.filter(**get_params)
+
+            filtered_items = Item.objects.filter(**get_params)
+            if filtered_items:
                 old_items.extend(filtered_items)
                 for filtered_item in old_items[-len(filtered_items):]:
                     filtered_item.last_parsed_time = last_parsed_time
-            except Item.DoesNotExist:
+            else:
                 new_items.append(Item(**create_params))
 
         if old_items:
@@ -215,6 +227,7 @@ class WildberriesItemScraper:
 
         for category_leaf in category_leaves:
             self._process_all_pages(category_leaf)
+            break
 
     def _process_all_pages(self, category_leaf: ItemCategory):
         counter = 1
@@ -230,50 +243,109 @@ class WildberriesItemScraper:
 
     def _process_items_on_page(self, bs: BeautifulSoup, category_leaf: ItemCategory):
         all_items = bs.find('div', class_='catalog_main_table').findAll('div', class_='dtList')
-        item_ids, item_imgs = self._extract_ids_imgs_from_page(all_items)
+        item_ids, img_id_to_objs, img_link_to_ids = self._extract_ids_imgs_from_page(all_items)
 
-        # Bulk create images
-        img_objects = [Image(mp_link=img, mp_source=self.mp_source) for img in item_imgs]
-        Image.objects.bulk_create(img_objects, ignore_conflicts=True)
+        imgs_filtered = Image.objects.filter(mp_link__in=img_link_to_ids.keys())
+        filtered_imgs_ids = []
+        for img_filtered in imgs_filtered:
+            item_id = img_link_to_ids[img_filtered.mp_link]
+            img_id_to_objs[item_id] = img_filtered
+            filtered_imgs_ids.append(item_id)
+
+        new_imgs = Image.objects.bulk_create(
+            [img for mp_id, img in img_id_to_objs.items() if mp_id not in filtered_imgs_ids])
+
+        for new_img in new_imgs:
+            item_id = img_link_to_ids[new_img.mp_link]
+            img_id_to_objs[item_id] = new_img
 
         available_items = Item.objects.filter(mp_id__in=item_ids)
-        available_ids = self._add_category_and_imgs(available_items, category_leaf, item_imgs)
-        not_in_db_ids = set(item_ids) - available_ids
+        updated_ids = self._add_category_and_imgs(available_items, category_leaf,
+                                                  img_id_to_objs) if available_items else set()
+        not_in_db_ids = set(item_ids) - updated_ids
 
-        item_json = self._get_indexes_info(list(not_in_db_ids))
-        new_items = self._add_items_to_db(item_json['data']['products'])
-        self._add_category_and_imgs(new_items, category_leaf, item_imgs)
+        item_json = self._get_item_or_seller_info(list(not_in_db_ids), self.config.item_url, ';')
+        if item_json['state'] == 0:
+            new_items = self._add_items_to_db(item_json['data']['products'])
+            self._add_category_and_imgs(new_items, category_leaf, img_id_to_objs)
+        else:
+            print(f'Got bad response for items: {item_json}')
 
     @staticmethod
     def _add_category_and_imgs(items: List[Item], category_leaf: ItemCategory,
-                               item_imgs: Dict[int, str]) -> Set[int]:
+                               item_imgs: Dict[int, Image]) -> Set[int]:
         updated_ids = set()
         for item in items:
             item.categories.add(category_leaf)
             item.images.add(item_imgs[item.mp_id])
-            updated_ids.add(item.id)
+            updated_ids.add(item.mp_id)
         return updated_ids
 
-    @staticmethod
-    def _extract_ids_imgs_from_page(all_items: List[Tag]) -> Tuple[List[int], Dict[int, str]]:
-        mp_ids, imgs = [], {}
+    def _extract_ids_imgs_from_page(self, all_items: List[Tag]) -> Tuple[List[int], Dict[int, Image], Dict[str, int]]:
+        mp_ids, imgs, link_to_ids = [], {}, {}
         for item in all_items:
             mp_ids.append(int(item['data-popup-nm-id']))
-            imgs[int(item['data-popup-nm-id'])] = 'https:' + item.find('img')['src']
-        return mp_ids, imgs
+
+            img_link = 'https:'
+            for tag in item.findAll('img'):
+                try:
+                    link = tag['src']
+                except AttributeError:
+                    continue
+                if 'blank' not in link:
+                    img_link += link
+                    break
+            img_obj = Image(mp_link=img_link, mp_source=self.mp_source)
+            if img_link != 'https:':
+                imgs[int(item['data-popup-nm-id'])] = img_obj
+                link_to_ids[img_link] = int(item['data-popup-nm-id'])
+        return mp_ids, imgs, link_to_ids
 
     def _individual_item_update(self):
-        items = self._get_items_no_categories()
-        for item in items:
-            item_bs, is_captcha, status_code = self.connector.get_page(RequestBody('url', 'get'))
+        items_gen = self._get_items_no_categories()
+        for item in items_gen:
+            item_bs, is_captcha, status_code = self.connector.get_page(RequestBody(
+                self.config.individual_item_url.format(item.mp_id), 'get'))
             category = self._parse_category(item_bs)
-            item.categories.add(category)
+            if category is not None:
+                print(f'{category.name} set to {item.name}')
+                item.categories.add(category)
+            else:
+                print(f"Can't find category for item name = {item.name} and mp_id = {item.mp_id}")
 
-    def _get_items_no_categories(self) -> List[Item]:
-        Item.objects.filter(categories__isnull=True)
+    @staticmethod
+    def _get_items_no_categories() -> Generator[Item, None, None]:
+        for item in Item.objects.filter(categories__isnull=True).iterator():
+            yield item
 
     def _parse_category(self, item_bs: BeautifulSoup) -> ItemCategory:
-        pass
+        list_of_breadcrumbs = item_bs.find('ul', class_="bread-crumbs")
+        if list_of_breadcrumbs is not None:
+            descendant_name, parent_name, parent_parent_name = '', '', ''
+            for tag in reversed(list_of_breadcrumbs.findAll('li', class_="breadcrumbs-item secondary")):
+                if 'brands' not in tag.find('a')['href']:
+                    if descendant_name == '':
+                        descendant_name = tag.find('a').text.strip('\n')
+                    elif parent_name == '':
+                        parent_name = tag.find('a').text.strip('\n')
+                    elif parent_parent_name == '':
+                        parent_parent_name = tag.find('a').text.strip('\n')
+                    else:
+                        break
+            return self._get_category_from_name(descendant_name, parent_name, parent_parent_name)
 
-    def _sellers_update(self):
-        pass
+    def _get_category_from_name(self, name: str, parent: str, parent_parent: str) -> ItemCategory:
+        if name != '':
+            params = {'name': name.lower()}
+            if parent != '':
+                params['parent__name'] = parent.lower()
+                if parent_parent != '':
+                    params['parent__parent__name'] = parent_parent.lower()
+            try:
+                return ItemCategory.objects.get(**params)
+            except ItemCategory.DoesNotExist as e:
+                print(f'Item Category does not exist: {e}')
+        else:
+            print(f'No category name sent to function: {name}, {parent}, {parent_parent}')
+
+        # Consider catching Multiple Object Return Error

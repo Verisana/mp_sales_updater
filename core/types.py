@@ -7,7 +7,8 @@ class ScraperConfigs:
     base_url: str
     base_categories_url: str
     base_catalog_url: str
-    item_url: str
+    items_api_url: str
+    individual_item_url: str
     seller_url: str
     revision_url: str
     bulk_item_step: int
