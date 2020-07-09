@@ -102,9 +102,9 @@ class WildberriesItemScraper:
             else:
                 return self._get_max_in_bounds(min_id, middle - 1)
 
-    def _get_item_or_seller_info(self, indexes: List[int], url: str, sep: str, is_special_header: bool = False) -> Dict:
-        indexes = sep.join(map(str, indexes))
-        url = url.format(indexes)
+    def _get_item_or_seller_info(self, indices: List[int], url: str, sep: str, is_special_header: bool = False) -> Dict:
+        indices = sep.join(map(str, indices))
+        url = url.format(indices)
         headers = self.xmlhttp_header if is_special_header else None
         json_result, _, _ = self.connector.get_page(RequestBody(url,
                                                                 method='get', parsing_type='json', headers=headers))
