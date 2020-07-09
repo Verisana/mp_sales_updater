@@ -28,8 +28,8 @@ class WildberriesItemScraper:
         }
 
     def update_from_mp(self) -> None:
-        # self._increment_item_update(start_from=13100000)
-        # self._in_category_update()
+        self._increment_item_update(start_from=1)
+        self._in_category_update()
         self._individual_item_update()
 
     @staticmethod
@@ -42,14 +42,13 @@ class WildberriesItemScraper:
         return mp_wildberries
 
     def _increment_item_update(self, start_from: int = 1) -> None:
-        # max_item_id = self._get_max_item_id()
-        max_item_id = 13999999
+        max_item_id = self._get_max_item_id()
         print(f'Upper bound found: {max_item_id}')
 
         start = time.time()
         for i in range(start_from, max_item_id + 1, self.config.bulk_item_step):
             indexes_to_request = list(range(i, min(max_item_id + 1, i + self.config.bulk_item_step)))
-            items_result = self._get_item_or_seller_info(indexes_to_request, self.config.item_url, ';', )
+            items_result = self._get_item_or_seller_info(indexes_to_request, self.config.items_api_url, ';', )
             sellers_result = self._get_item_or_seller_info(indexes_to_request,
                                                            self.config.seller_url, ',', is_special_header=True)
 
@@ -89,13 +88,13 @@ class WildberriesItemScraper:
 
     def _get_rough_bounds(self, latest: int, step_size: int) -> Tuple[int, int]:
         indexes_to_request = [latest, latest + step_size]
-        result = self._get_item_or_seller_info(indexes_to_request, self.config.item_url, ';')
+        result = self._get_item_or_seller_info(indexes_to_request, self.config.items_api_url, ';')
 
         # Find roughly lower and upper bounds
         while result['state'] == 0:
             latest += step_size
             indexes_to_request = [latest, latest + step_size]
-            result = self._get_item_or_seller_info(indexes_to_request, self.config.item_url, ';')
+            result = self._get_item_or_seller_info(indexes_to_request, self.config.items_api_url, ';')
         return latest, latest + step_size
 
     def _get_max_in_bounds(self, min_id: int, max_id: int) -> int:
@@ -105,7 +104,7 @@ class WildberriesItemScraper:
             return middle
         else:
             indexes_to_request = [min_id, middle]
-            result = self._get_item_or_seller_info(indexes_to_request, self.config.item_url, ';')
+            result = self._get_item_or_seller_info(indexes_to_request, self.config.items_api_url, ';')
             if result['state'] == 0:
                 return self._get_max_in_bounds(middle + 1, max_id)
             else:
@@ -227,7 +226,10 @@ class WildberriesItemScraper:
 
         for category_leaf in category_leaves:
             self._process_all_pages(category_leaf)
+
+            # DEBUGGING !!!!!!!!!!!!!
             break
+            # DEBUGGING !!!!!!!!!!!!!
 
     def _process_all_pages(self, category_leaf: ItemCategory):
         counter = 1
@@ -264,7 +266,7 @@ class WildberriesItemScraper:
                                                   img_id_to_objs) if available_items else set()
         not_in_db_ids = set(item_ids) - updated_ids
 
-        item_json = self._get_item_or_seller_info(list(not_in_db_ids), self.config.item_url, ';')
+        item_json = self._get_item_or_seller_info(list(not_in_db_ids), self.config.items_api_url, ';')
         if item_json['state'] == 0:
             new_items = self._add_items_to_db(item_json['data']['products'])
             self._add_category_and_imgs(new_items, category_leaf, img_id_to_objs)
@@ -306,16 +308,21 @@ class WildberriesItemScraper:
         for item in items_gen:
             item_bs, is_captcha, status_code = self.connector.get_page(RequestBody(
                 self.config.individual_item_url.format(item.mp_id), 'get'))
-            category = self._parse_category(item_bs)
-            if category is not None:
-                print(f'{category.name} set to {item.name}')
-                item.categories.add(category)
+            if status_code == 200:
+                category = self._parse_category(item_bs)
+                if category is not None:
+                    print(f'{category.name} set to {item.name}')
+                    item.categories.add(category)
+                else:
+                    print(f"Can't find category for item name = {item.name} and mp_id = {item.mp_id}")
             else:
-                print(f"Can't find category for item name = {item.name} and mp_id = {item.mp_id}")
+                item.is_deleted = True
+                item.save()
+                print(f'item {item.mp_id} is not used anymore')
 
     @staticmethod
     def _get_items_no_categories() -> Generator[Item, None, None]:
-        for item in Item.objects.filter(categories__isnull=True).iterator():
+        for item in Item.objects.filter(categories__isnull=True, is_deleted=False).iterator():
             yield item
 
     def _parse_category(self, item_bs: BeautifulSoup) -> ItemCategory:
