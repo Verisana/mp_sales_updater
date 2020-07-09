@@ -10,7 +10,8 @@ from core.mp_scrapers.configs import WILDBERRIES_CONFIG
 from core.utils.connector import Connector
 from core.types import RequestBody
 from core.utils.trees import Node
-from core.models import Marketplace, MarketplaceScheme, ItemCategory
+from core.models import ItemCategory
+from core.mp_scrapers.wildberries.wildberries_base import get_mp_wb
 
 
 class WildberriesCategoryScraper:
@@ -26,7 +27,7 @@ class WildberriesCategoryScraper:
             'x-requested-with': 'XMLHttpRequest',
         }
         self.base_catalog_pattern = 'https://www.wildberries.ru/catalog/{}'
-        self.mp_source = self._get_mp_wb()
+        self.mp_source = get_mp_wb()
 
     def update_from_mp(self) -> None:
         bs, is_captcha, _ = self.connector.get_page(RequestBody(self.config.base_categories_url, 'get',
@@ -41,15 +42,6 @@ class WildberriesCategoryScraper:
         parsed_nodes = pickle.load(open(load_file, 'rb'))
         self._save_all_results_in_db(parsed_nodes)
         self._check_db_consistency()
-
-    @staticmethod
-    def _get_mp_wb() -> Marketplace:
-        scheme_qs = MarketplaceScheme.objects.get_or_create(name='FBM')[0]
-        mp_wildberries, is_created = Marketplace.objects.get_or_create(name='Wildberries')
-        if is_created:
-            mp_wildberries.working_schemes.add(scheme_qs)
-            mp_wildberries.save()
-        return mp_wildberries.id
 
     def _parse_bs_response(self, bs: BeautifulSoup) -> List[Node]:
         root_node_tags = bs.find('ul', class_='topmenus').findAll(self._check_root_matching)
