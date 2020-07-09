@@ -11,7 +11,8 @@ from bs4.element import Tag
 from core.mp_scrapers.configs import WILDBERRIES_CONFIG
 from core.utils.connector import Connector
 from core.types import RequestBody
-from core.models import Marketplace, MarketplaceScheme, ItemCategory, Item, Brand, Colour, Image, Seller
+from core.models import ItemCategory, Item, Brand, Colour, Image, Seller
+from core.mp_scrapers.wildberries.wildberries_base import get_mp_wb
 
 
 class WildberriesItemScraper:
@@ -20,7 +21,7 @@ class WildberriesItemScraper:
     def __init__(self):
         self.config = WILDBERRIES_CONFIG
         self.connector = Connector(use_proxy=self.config.use_proxy)
-        self.mp_source = self._get_mp_wb()
+        self.mp_source = get_mp_wb()
         self.xmlhttp_header = {
             'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) '
                           'Chrome/83.0.4103.116 Safari/537.36',
@@ -31,15 +32,6 @@ class WildberriesItemScraper:
         self._increment_item_update(start_from=1)
         self._in_category_update()
         self._individual_item_update()
-
-    @staticmethod
-    def _get_mp_wb() -> Marketplace:
-        scheme_qs = MarketplaceScheme.objects.get_or_create(name='FBM')[0]
-        mp_wildberries, is_created = Marketplace.objects.get_or_create(name='Wildberries')
-        if is_created:
-            mp_wildberries.working_schemes.add(scheme_qs)
-            mp_wildberries.save()
-        return mp_wildberries
 
     def _increment_item_update(self, start_from: int = 1) -> None:
         max_item_id = self._get_max_item_id()
@@ -125,25 +117,21 @@ class WildberriesItemScraper:
         self._fill_nones_in_items(colour_id_to_idx, items_info, Colour, 'colour', 'mp_id')
         self._fill_nones_in_items(seller_id_to_idx, items_info, Seller, 'seller', 'name')
 
-        last_parsed_time = now() - timedelta(days=1)
+        next_parsed_time = now()
         new_items, old_items = [], []
         for item in items_info:
             create_params = {'name': item['name'], 'mp_id': item['mp_id'], 'mp_source': self.mp_source,
                              'root_id': item['root_id'], 'brand': item['brand'], 'colour': item['colour'],
                              'size_name': item['size_name'], 'size_orig_name': item['size_orig_name'],
-                             'seller': item['seller'], 'last_parsed_time': last_parsed_time}
+                             'seller': item['seller'], 'next_parsed_time': next_parsed_time,
+                             'is_digital': item['is_digital'], 'is_adult': item['is_adult']}
             get_params = {'mp_id': item['mp_id'], 'mp_source': self.mp_source}
 
             filtered_items = Item.objects.filter(**get_params)
             if filtered_items:
                 old_items.extend(filtered_items)
-                for filtered_item in old_items[-len(filtered_items):]:
-                    filtered_item.last_parsed_time = last_parsed_time
             else:
                 new_items.append(Item(**create_params))
-
-        if old_items:
-            Item.objects.bulk_update(old_items, ['last_parsed_time'])
 
         if new_items:
             new_items = Item.objects.bulk_create(new_items)
@@ -169,7 +157,8 @@ class WildberriesItemScraper:
                       seller_id_to_idx: Dict[Union[str, int], List[int]], items_info: List[Dict], item: Dict,
                       colour: Dict) -> None:
         new_item_info = {'name': item['name'], 'mp_id': item['id'], 'root_id': item['root'], 'brand': None,
-                         'colour': None, 'size_name': '', 'size_orig_name': '', 'seller': None}
+                         'colour': None, 'size_name': '', 'size_orig_name': '', 'seller': None,
+                         'is_digital': item['isDigital'], 'is_adult': item['isAdult']}
         if item['sizes']:
             new_item_info['size_name'] = item['sizes'][0]['name']
             new_item_info['size_orig_name'] = item['sizes'][0]['origName']

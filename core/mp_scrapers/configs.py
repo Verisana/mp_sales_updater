@@ -13,7 +13,3 @@ WILDBERRIES_CONFIG = ScraperConfigs(
     bulk_item_step=800,
     use_proxy=True,
 )
-
-headers = {
-    'x-requested-with': 'XMLHttpRequest',
-}

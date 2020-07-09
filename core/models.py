@@ -4,6 +4,8 @@ from typing import Tuple
 from django.db import models
 from mptt.models import MPTTModel, TreeForeignKey
 
+from core.mp_scrapers.configs import WILDBERRIES_CONFIG
+
 
 class Marketplace(models.Model):
     name = models.CharField(max_length=128, unique=True)
@@ -38,12 +40,14 @@ class Item(models.Model):
     colour = models.ForeignKey('Colour', on_delete=models.CASCADE, blank=True, null=True, related_name='items')
     size_name = models.CharField(max_length=128, blank=True, null=True)
     size_orig_name = models.CharField(max_length=128, blank=True, null=True)
+    is_digital = models.BooleanField(default=False)
+    is_adult = models.BooleanField(default=False)
 
     latest_revision = models.OneToOneField('ItemRevision', on_delete=models.CASCADE,
                                            null=True, blank=True, related_name='items')
 
     parse_frequency = models.DurationField(default=timedelta(hours=24))
-    last_parsed_time = models.DateTimeField(null=True, blank=True)
+    next_parsed_time = models.DateTimeField(null=True, blank=True)
 
     is_deleted = models.BooleanField(default=False)
 
@@ -61,12 +65,9 @@ class ItemRevision(models.Model):
     comments_num = models.IntegerField(default=0)
     is_new = models.BooleanField(default=False)
     is_bestseller = models.BooleanField(default=False)
-    is_digital = models.BooleanField(default=False)
-    is_adult = models.BooleanField(default=False)
 
     price = models.IntegerField()
     sale_price = models.IntegerField()
-    discount = models.IntegerField(default=0)
     available_qty = models.IntegerField()
 
     created_at = models.DateTimeField(auto_now_add=True)
