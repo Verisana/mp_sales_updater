@@ -55,7 +55,7 @@ class Item(models.Model):
     modified_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return self.name
+        return self.name + ' (' + str(self.mp_id) + ') ' + ' (' + self.colour.name + ') ' + ' ' + self.brand.name
 
 
 class ItemRevision(models.Model):

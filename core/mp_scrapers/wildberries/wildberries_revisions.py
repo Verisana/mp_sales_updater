@@ -27,11 +27,8 @@ class WildberriesRevisionScraper:
         for items, mp_ids in items_gen:
             items_info = self._get_items_info(mp_ids)
 
-            if items_info['state'] == 0:
-                new_revisions = self._create_new_revisions(items_info['data']['products'], items)
-                self._set_new_revisions_to_items(items, new_revisions)
-            else:
-                print(f'Expected valid state from items_info {items_info}')
+            new_revisions = self._create_new_revisions(items_info, items)
+            self._set_new_revisions_to_items(items, new_revisions)
 
             print(f'Done step {counter} in {time.time() - start:0.0f} seconds')
             counter += 1
@@ -56,39 +53,44 @@ class WildberriesRevisionScraper:
                 yield chunked_items, chunked_mp_ids
                 chunked_items.clear(), chunked_mp_ids.clear()
 
-    def _get_items_info(self, indexes: List[int]) -> Dict:
-        indexes = ';'.join(map(str, indexes))
-        url = self.config.items_api_url.format(indexes)
-        json_result, _, _ = self.connector.get_page(RequestBody(url, method='get', parsing_type='json'))
-        return json_result
+    def _get_items_info(self, indices: List[int]) -> List[Dict]:
+        if len(indices) == 0:
+            return []
+
+        str_idxs = ';'.join(map(str, indices))
+        url = self.config.items_api_url.format(str_idxs)
+        json_result, *_ = self.connector.get_page(RequestBody(url, method='get', parsing_type='json'))
+
+        if json_result['state'] == 0:
+            items_info = json_result['data']['products']
+            start_from = len(items_info)
+
+            # Be careful. This implementation supposes items_info cut ONLY last queries
+            # So, we linearly extend it to match our items
+            items_info.extend(self._get_items_info(indices[start_from:]))
+            return items_info
+        else:
+            print(f'Expected valid state from items_info {json_result}')
 
     def _create_new_revisions(self, items_info: List[Dict], items: List[Item]) -> List[ItemRevision]:
         new_revisions = []
         assert len(items) == len(items)
         for item_info, item in zip(items_info, items):
             available_qty = self._get_available_qty(item_info)
+            try:
+                price = item_info['price']
+            except KeyError:
+                price = 0
+            try:
+                sale_price = item_info['salePrice']
+            except KeyError:
+                sale_price = 0
+
             new_revision = ItemRevision(item=item, rating=item_info['rating'], comments_num=item_info['feedbackCount'],
-                                        is_new=item_info['icons']['isNew'], price=item_info['price'],
-                                        sale_price=item_info['salePrice'], available_qty=available_qty)
+                                        is_new=item_info['icons']['isNew'], price=price,
+                                        sale_price=sale_price, available_qty=available_qty)
             new_revisions.append(new_revision)
         return ItemRevision.objects.bulk_create(new_revisions)
-
-    def _get_items_from_unique_keys(self, items: List[Item]) -> Dict[str, List[Item]]:
-        items_id_to_obj = defaultdict(list)
-        for item in items:
-            unique_key = self._get_unique_key(item)
-            if len(items_id_to_obj[unique_key]) == 0:
-                items_id_to_obj[unique_key].append(item)
-            else:
-                ids_to_check = [item.id for item in items_id_to_obj[unique_key]]
-                raise SalesUpdaterError(
-                    f'Something is wrong. You have to have unique key. Check {ids_to_check} and {item.id}')
-        return items_id_to_obj
-
-    @staticmethod
-    def _get_unique_key(item: Item) -> str:
-        key_template = '{} {} {}'
-        return key_template.format(str(item.mp_id), str(item.colour_id), str(item.brand_id))
 
     @staticmethod
     def _get_available_qty(item_info: Dict) -> int:
@@ -98,10 +100,11 @@ class WildberriesRevisionScraper:
                 result += stock['qty']
         return result
 
-    def _set_new_revisions_to_items(self, items: List[Item], new_revisions: List[ItemRevision]) -> None:
+    @staticmethod
+    def _set_new_revisions_to_items(items: List[Item], new_revisions: List[ItemRevision]) -> None:
         items_to_update = []
         assert len(new_revisions) == len(items)
         for revision, item in zip(new_revisions, items):
             item.latest_revision = revision
-            items_to_update.append(items_to_update)
+            items_to_update.append(item)
         Item.objects.bulk_update(items_to_update, ['latest_revision'])
