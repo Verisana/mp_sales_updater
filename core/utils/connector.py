@@ -28,7 +28,7 @@ class Connector:
         return False
 
     def get_page(self, request_info: RequestBody) -> Union[Tuple[BeautifulSoup, bool, int], Tuple[Dict, bool, int],
-                                                           Tuple[None, None, None]]:
+                                                           Tuple[None, None, None], Tuple[bytes, None, int]]:
         for i in range(self.try_count):
             try:
                 response = self._send_request(request_info)
@@ -46,6 +46,8 @@ class Connector:
                     return json_result, is_captcha, response.status_code
                 except json.JSONDecodeError as e:
                     print(f'JSONDecoderError: {e.msg} occurred in request {request_info} result: {response.text}')
+            elif request_info.parsing_type == 'image':
+                return response.content, None, response.status_code
             else:
                 print('Unrecognized type of parsing')
         print("All attempts to connect have been used")

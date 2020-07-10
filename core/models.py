@@ -47,7 +47,7 @@ class Item(models.Model):
                                            null=True, blank=True, related_name='items')
 
     parse_frequency = models.DurationField(default=timedelta(hours=24))
-    next_parsed_time = models.DateTimeField(null=True, blank=True)
+    next_parse_time = models.DateTimeField(null=True, blank=True)
 
     is_deleted = models.BooleanField(default=False)
 
@@ -99,7 +99,7 @@ class ItemCategory(MPTTModel):
 
 
 class Image(models.Model):
-    image_file = models.ImageField(upload_to='item/', blank=True)
+    image_file = models.ImageField(upload_to='image_model_storage/', blank=True)
     mp_link = models.CharField(max_length=256, unique=True)
     mp_source = models.ForeignKey('Marketplace', on_delete=models.CASCADE)
 

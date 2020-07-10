@@ -1,11 +1,9 @@
 import time
-from collections import defaultdict
 from typing import List, Dict, Tuple, Generator
 
 from django.db.models import QuerySet
 from django.utils.timezone import now
 
-from core.exceptions import SalesUpdaterError
 from core.mp_scrapers.configs import WILDBERRIES_CONFIG
 from core.utils.connector import Connector
 from core.types import RequestBody
@@ -106,5 +104,6 @@ class WildberriesRevisionScraper:
         assert len(new_revisions) == len(items)
         for revision, item in zip(new_revisions, items):
             item.latest_revision = revision
+            item.next_parse_time = now() + item.parse_frequency
             items_to_update.append(item)
-        Item.objects.bulk_update(items_to_update, ['latest_revision'])
+        Item.objects.bulk_update(items_to_update, ['latest_revision', 'next_parse_time'])

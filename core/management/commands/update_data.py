@@ -1,5 +1,6 @@
 from django.core.management.base import BaseCommand, CommandError
 from core.mp_scrapers.wildberries.wildberries_categories import WildberriesCategoryScraper
+from core.mp_scrapers.wildberries.wildberries_images import WildberriesImageScraper
 from core.mp_scrapers.wildberries.wildberries_items import WildberriesItemScraper
 from core.mp_scrapers.wildberries.wildberries_revisions import WildberriesRevisionScraper
 
@@ -24,6 +25,9 @@ class Command(BaseCommand):
                 scraper.update_from_mp()
             elif action_type == 'revisions':
                 scraper = WildberriesRevisionScraper()
+                scraper.update_from_mp()
+            elif action_type == 'images':
+                scraper = WildberriesImageScraper()
                 scraper.update_from_mp()
             else:
                 raise CommandError(f"Unrecognized type {action_type} for marketplace {mp}")
