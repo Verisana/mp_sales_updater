@@ -24,6 +24,7 @@ class WildberriesRevisionScraper:
         start = time.time()
         for items, mp_ids in items_gen:
             items_info = self._get_items_info(mp_ids)
+            assert len(items_info) == len(mp_ids)
 
             new_revisions = self._create_new_revisions(items_info, items)
             self._set_new_revisions_to_items(items, new_revisions)
@@ -75,14 +76,8 @@ class WildberriesRevisionScraper:
         assert len(items) == len(items)
         for item_info, item in zip(items_info, items):
             available_qty = self._get_available_qty(item_info)
-            try:
-                price = item_info['price']
-            except KeyError:
-                price = 0
-            try:
-                sale_price = item_info['salePrice']
-            except KeyError:
-                sale_price = 0
+            price = item_info['price'] if item_info.get('price') else 0
+            sale_price = item_info['salePrice'] if item_info.get('salePrice') else 0
 
             new_revision = ItemRevision(item=item, rating=item_info['rating'], comments_num=item_info['feedbackCount'],
                                         is_new=item_info['icons']['isNew'], price=price,
