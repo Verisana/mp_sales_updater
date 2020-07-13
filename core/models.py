@@ -4,8 +4,6 @@ from typing import Tuple
 from django.db import models
 from mptt.models import MPTTModel, TreeForeignKey
 
-from core.mp_scrapers.configs import WILDBERRIES_CONFIG
-
 
 class Marketplace(models.Model):
     name = models.CharField(max_length=128, unique=True)
@@ -55,7 +53,7 @@ class Item(models.Model):
     modified_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return self.name + ' (' + str(self.mp_id) + ') ' + ' (' + self.colour.name + ') ' + ' ' + self.brand.name
+        return f'{self.name} ({self.mp_id}) ({self.colour.name}) {self.brand.name}'
 
 
 class ItemRevision(models.Model):
@@ -134,7 +132,7 @@ class Colour(models.Model):
     modified_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return self.name + ' (' + self.mp_source.name + ')'
+        return f'{self.name} ({self.mp_source.name})'
 
 
 class Seller(models.Model):
@@ -144,4 +142,4 @@ class Seller(models.Model):
     modified_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return self.name + ' (' + self.mp_source.name + ')'
+        return f'{self.name} ({self.mp_source.name})'

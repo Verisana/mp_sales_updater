@@ -1,18 +1,17 @@
 import time
-from typing import List, Dict, Tuple, Set, Union, Any, Callable, Generator
-from datetime import timedelta
 from collections import defaultdict
+from typing import List, Dict, Tuple, Set, Union, Any, Callable, Generator
 
-from django.db.models.base import ModelBase
-from django.utils.timezone import now
 from bs4 import BeautifulSoup
 from bs4.element import Tag
+from django.db.models.base import ModelBase
+from django.utils.timezone import now
 
-from core.mp_scrapers.configs import WILDBERRIES_CONFIG
-from core.utils.connector import Connector
-from core.types import RequestBody
 from core.models import ItemCategory, Item, Brand, Colour, Image, Seller
+from core.mp_scrapers.configs import WILDBERRIES_CONFIG
 from core.mp_scrapers.wildberries.wildberries_base import get_mp_wb
+from core.types import RequestBody
+from core.utils.connector import Connector
 
 
 class WildberriesItemScraper:
@@ -29,7 +28,7 @@ class WildberriesItemScraper:
         }
 
     def update_from_mp(self) -> None:
-        self._increment_item_update(start_from=1)
+        self._increment_item_update()
         self._in_category_update()
         self._individual_item_update()
 
