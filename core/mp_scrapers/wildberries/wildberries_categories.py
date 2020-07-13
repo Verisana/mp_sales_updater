@@ -62,13 +62,12 @@ class WildberriesCategoryScraper:
         :param tag: Tag - tag to check
         :return:
         1. Choose only 'li'
-        2. We need only two tags to exclude premium/travels etc. tags
-        3. Certain class names to include
-        4. Exclude not root links. For example: .../catalog/detyam/shkola
+        2. Filter if element in class from exclude_categories
+        3. Exclude not root links. For example: .../catalog/detyam/shkola
         """
+        exclude_categories = {'airticket', 'brands', 'promo-offer'}
         return tag.name == 'li' and \
-            len(tag['class']) == 2 and \
-            ' '.join(tag['class']) == 'topmenus-item j-parallax-back-layer-item' and \
+            not set(tag['class']) & exclude_categories and \
             re.fullmatch(self.base_catalog_pattern.format('[^/?]+'), tag.find('a')['href'])
 
     def _parse_all_descendants(self, nodes: List[Node], level: int = 0) -> List[Node]:
