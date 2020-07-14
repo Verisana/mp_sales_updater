@@ -1,5 +1,4 @@
 from datetime import timedelta
-from typing import Tuple
 
 from django.db import models
 from mptt.models import MPTTModel, TreeForeignKey
@@ -108,16 +107,16 @@ class Image(models.Model):
         return self.mp_link
 
 
-def get_name_source_id(foreign_key_name: str) -> Tuple[models.CharField, models.ForeignKey, models.IntegerField]:
+class CommonNameSourceId(models.Model):
     name = models.CharField(max_length=128, blank=True)
-    mp_source = models.ForeignKey(foreign_key_name, on_delete=models.CASCADE)
+    mp_source = models.ForeignKey('Marketplace', on_delete=models.CASCADE)
     mp_id = models.IntegerField(blank=True, null=True)
-    return name, mp_source, mp_id
+
+    class Meta:
+        abstract = True
 
 
-class Brand(models.Model):
-    name, mp_source, mp_id = get_name_source_id('Marketplace')
-
+class Brand(CommonNameSourceId):
     created_at = models.DateTimeField(auto_now_add=True)
     modified_at = models.DateTimeField(auto_now=True)
 
@@ -125,9 +124,7 @@ class Brand(models.Model):
         return self.name
 
 
-class Colour(models.Model):
-    name, mp_source, mp_id = get_name_source_id('Marketplace')
-
+class Colour(CommonNameSourceId):
     created_at = models.DateTimeField(auto_now_add=True)
     modified_at = models.DateTimeField(auto_now=True)
 
@@ -135,9 +132,7 @@ class Colour(models.Model):
         return f'{self.name} ({self.mp_source.name})'
 
 
-class Seller(models.Model):
-    name, mp_source, mp_id = get_name_source_id('Marketplace')
-
+class Seller(CommonNameSourceId):
     created_at = models.DateTimeField(auto_now_add=True)
     modified_at = models.DateTimeField(auto_now=True)
 
