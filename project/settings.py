@@ -106,3 +106,44 @@ try:
     from project.local_settings import *
 except ImportError:
     print('Warning! Local settings are not defined!')
+
+JSON_LOG_FILE = 'main.json.log'
+
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'verbose': {
+            'format': '%(levelname)s %(asctime)s %(module)s %(process)d %(thread)d %(message)s'
+        },
+        'logzioFormat': {
+            'format': '{"additional_field": "value"}'
+        },
+        'JsonFormatter': {
+            '()': 'pythonjsonlogger.jsonlogger.JsonFormatter'
+        }
+    },
+    'handlers': {
+        'file': {
+            'class': 'logging.FileHandler',
+            'filename': JSON_LOG_FILE,
+            'level': 'DEBUG',
+            'formatter': 'JsonFormatter'
+        },
+        'console': {
+            'class': 'logging.StreamHandler',
+            'level': 'DEBUG',
+            'formatter': 'verbose'
+        }
+    },
+    'loggers': {
+        'main': {
+            'handlers': ['console', 'file'],
+            'level': 'INFO'
+        }
+    }
+}
+
+import logging
+logger = logging.getLogger('main')
+logger.info('message', extra={'extra_data_id': 1})
