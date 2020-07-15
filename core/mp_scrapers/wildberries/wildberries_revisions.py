@@ -1,5 +1,6 @@
 import time
 from typing import List, Dict, Tuple, Generator
+from multiprocessing import Pool
 
 from django.db.models import QuerySet
 from django.utils.timezone import now
@@ -11,18 +12,52 @@ from core.models import Item, ItemRevision
 from core.mp_scrapers.wildberries.wildberries_base import get_mp_wb
 
 
+class WildberriesRevisionScraperProcessPool:
+
+    def start_process_pool(self):
+        start = 0
+        step = 500
+        end = step
+
+        self.current_proccesses = 0
+        self.processes = 1
+
+        def cb(*args, **kwargs):
+            self.current_proccesses -= 1
+
+        with Pool(processes=self.processes) as pool:
+            while 1:
+                if self.current_proccesses < self.processes:
+                    print('here')
+                    scrapper = WildberriesRevisionScraper()
+                    pool.apply_async(scrapper.update_from_mp, args=(start, end), callback=cb)
+                    self.current_proccesses += 1
+
+                    start += step
+                    end += step
+                else:
+                    time.sleep(0.3)
+
+
 class WildberriesRevisionScraper:
     def __init__(self):
+        # TODO скинуть подключение к базе данных
+        # from django import db
+        # db.close_connection()
+
+        # from django.db import connection
+        # connection.close()
+
         self.config = WILDBERRIES_CONFIG
         self.connector = Connector(use_proxy=self.config.use_proxy)
         self.mp_source = get_mp_wb()
 
-    def update_from_mp(self) -> None:
-        items_gen = self._get_items_to_update()
+    def update_from_mp(self, start, end) -> None:
+        items_qs = self._get_items_to_update()[start, end]
 
         counter = 1
         start = time.time()
-        for items, mp_ids in items_gen:
+        for items, mp_ids in items_qs:
             items_info = self._get_items_info(mp_ids)
             assert len(items_info) == len(mp_ids)
 
@@ -34,13 +69,14 @@ class WildberriesRevisionScraper:
             start = time.time()
 
     def _get_items_to_update(self) -> Generator[Tuple[List[Item], List[int]], None, None]:
-        items_no_revision = Item.objects.filter(is_deleted=False, mp_source=self.mp_source,
-                                                latest_revision__isnull=True)
-        yield from self._chunk_items_iterator(items_no_revision)
-
-        items_ready_to_parse = Item.objects.filter(is_deleted=False, mp_source=self.mp_source,
-                                                   next_parsed_time__lte=now())
-        yield from self._chunk_items_iterator(items_ready_to_parse)
+        return Item.objects.filter(is_deleted=False, mp_source=self.mp_source, next_parsed_time__lt=now).order_by('-next_parsed_time')
+        # items_no_revision = Item.objects.filter(is_deleted=False, mp_source=self.mp_source,
+        #                                         latest_revision__isnull=True)
+        # yield from self._chunk_items_iterator(items_no_revision)
+        #
+        # items_ready_to_parse = Item.objects.filter(is_deleted=False, mp_source=self.mp_source,
+        #                                            next_parsed_time__lte=now())
+        # yield from self._chunk_items_iterator(items_ready_to_parse)
 
     def _chunk_items_iterator(self, filtered_items: QuerySet) -> Generator[Tuple[List[Item], List[int]], None, None]:
         chunked_items, chunked_mp_ids = [], []
