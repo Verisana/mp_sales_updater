@@ -73,7 +73,7 @@ class WildberriesRevisionScraper:
 
     def _create_new_revisions(self, items_info: List[Dict], items: List[Item]) -> List[ItemRevision]:
         new_revisions = []
-        assert len(items) == len(items)
+        assert len(items_info) == len(items)
         for item_info, item in zip(items_info, items):
             available_qty = self._get_available_qty(item_info)
             price = item_info['price'] if item_info.get('price') else 0
