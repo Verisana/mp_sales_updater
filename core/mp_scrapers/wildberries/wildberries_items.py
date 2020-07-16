@@ -8,19 +8,14 @@ from django.db.models.base import ModelBase
 from django.utils.timezone import now
 
 from core.models import ItemCategory, Item, Brand, Colour, Image, Seller
-from core.mp_scrapers.configs import WILDBERRIES_CONFIG
-from core.mp_scrapers.wildberries.wildberries_base import get_mp_wb
+from core.mp_scrapers.wildberries.wildberries_base import WildberriesBaseScraper
 from core.types import RequestBody
-from core.utils.connector import Connector
 
 
-class WildberriesItemScraper:
+class WildberriesItemScraper(WildberriesBaseScraper):
     xmlhttp_header: Dict[str, str]
 
     def __init__(self):
-        self.config = WILDBERRIES_CONFIG
-        self.connector = Connector(use_proxy=self.config.use_proxy)
-        self.mp_source = get_mp_wb()
         self.xmlhttp_header = {
             'user-agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) '
                           'Chrome/83.0.4103.116 Safari/537.36',

@@ -5,19 +5,13 @@ from django.core.files.base import ContentFile
 from django.db.models import QuerySet
 from django.utils.timezone import now
 
-from core.mp_scrapers.configs import WILDBERRIES_CONFIG
-from core.utils.connector import Connector
 from core.types import RequestBody
 from core.models import Image
-from core.mp_scrapers.wildberries.wildberries_base import get_mp_wb
+from core.mp_scrapers.wildberries.wildberries_base import WildberriesBaseScraper
 
 
-class WildberriesImageScraper:
+class WildberriesImageScraper(WildberriesBaseScraper):
     def __init__(self):
-        self.config = WILDBERRIES_CONFIG
-        self.connector = Connector(use_proxy=self.config.use_proxy)
-        self.mp_source = get_mp_wb()
-
         # Mock property. TODO: write full function for logging and loading update_start_time
         self.update_start_time = now()
 

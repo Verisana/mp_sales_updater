@@ -6,18 +6,14 @@ from bs4 import BeautifulSoup
 from bs4.element import Tag
 from mptt.querysets import TreeQuerySet
 
-from core.mp_scrapers.configs import WILDBERRIES_CONFIG
-from core.utils.connector import Connector
 from core.types import RequestBody
 from core.utils.trees import Node
 from core.models import ItemCategory
-from core.mp_scrapers.wildberries.wildberries_base import get_mp_wb
+from core.mp_scrapers.wildberries.wildberries_base import WildberriesBaseScraper
 
 
-class WildberriesCategoryScraper:
+class WildberriesCategoryScraper(WildberriesBaseScraper):
     def __init__(self):
-        self.config = WILDBERRIES_CONFIG
-        self.connector = Connector(use_proxy=self.config.use_proxy)
         self.all_categories_headers = {
             'accept': '*/*',
             'accept-encoding': 'gzip, deflate, br',
@@ -27,7 +23,6 @@ class WildberriesCategoryScraper:
             'x-requested-with': 'XMLHttpRequest',
         }
         self.base_catalog_pattern = 'https://www.wildberries.ru/catalog/{}'
-        self.mp_source = get_mp_wb()
 
     def update_from_mp(self) -> None:
         bs, is_captcha, _ = self.connector.get_page(RequestBody(self.config.base_categories_url, 'get',

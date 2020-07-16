@@ -45,6 +45,7 @@ class Item(models.Model):
 
     parse_frequency = models.DurationField(default=timedelta(hours=24))
     next_parse_time = models.DateTimeField(null=True, blank=True)
+    start_parse_time = models.DateTimeField(null=True, blank=True)
 
     is_deleted = models.BooleanField(default=False)
 
