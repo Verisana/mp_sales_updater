@@ -2,8 +2,6 @@ import multiprocessing
 import time
 from abc import ABC, abstractmethod
 
-from django.db import connection
-
 from core.models import Marketplace, MarketplaceScheme
 from core.mp_scrapers.configs import WILDBERRIES_CONFIG
 from core.utils.connector import Connector
@@ -19,13 +17,12 @@ def get_mp_wb() -> Marketplace:
 
 
 class WildberriesBaseScraper(ABC):
-    connection.close()
     config = WILDBERRIES_CONFIG
     connector = Connector(use_proxy=config.use_proxy)
     mp_source = get_mp_wb()
 
     @abstractmethod
-    def update_from_mp(self):
+    def update_from_mp(self) -> None:
         raise NotImplementedError
 
 
@@ -46,7 +43,6 @@ class WildberriesProcessPool:
         with multiprocessing.Pool(processes=self.processes) as pool:
             while True:
                 if self.current_processes < self.processes:
-                    print('here')
                     pool.apply_async(self.scraper.update_from_mp, callback=self._current_processes_reducer,
                                      error_callback=self._current_processes_reducer)
                     self.current_processes += 1
@@ -55,6 +51,7 @@ class WildberriesProcessPool:
                     # end += step
                 else:
                     # For the sake of not wasting CPU powers
+                    # print('Skip!')
                     time.sleep(0.3)
 
     def _current_processes_reducer(self):
