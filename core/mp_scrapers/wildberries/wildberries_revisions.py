@@ -34,13 +34,13 @@ class WildberriesRevisionScraper(WildberriesBaseScraper):
     def _get_items_to_update(self) -> Tuple[List[Item], List[int]]:
         current_time = now()
         frozen_start_time = current_time + timedelta(minutes=10)
-        filtered_items = Item.objects.filter(is_deleted=False, mp_source=self.mp_source,
-                                             next_parse_time__lte=current_time,
-                                             start_parse_time__gte=frozen_start_time).order_by('next_parse_time')[
-                         :self.config.bulk_item_step]
+        filtered_items = Item.objects.select_for_update(skip_locked=True).filter(
+            is_deleted=False, mp_source=self.mp_source, revisions_next_parse_time__lte=current_time,
+            revisions_start_parse_time__gte=frozen_start_time).order_by(
+            'revisions_next_parse_time')[:self.config.bulk_item_step]
         for item in filtered_items:
-            item.start_parse_time = current_time
-        Item.objects.bulk_update(filtered_items, ['start_parse_time'])
+            item.revisions_start_parse_time = current_time
+        Item.objects.bulk_update(filtered_items, ['revisions_start_parse_time'])
         mp_ids = [item.mp_id for item in filtered_items]
         return filtered_items, mp_ids
 
@@ -97,7 +97,8 @@ class WildberriesRevisionScraper(WildberriesBaseScraper):
         assert len(new_revisions) == len(items)
         for revision, item in zip(new_revisions, items):
             item.latest_revision = revision
-            item.next_parse_time = now() + item.parse_frequency
-            item.start_parse_time = None
+            item.revisions_next_parse_time = now() + item.revisions_parse_frequency
+            item.revisions_start_parse_time = None
             items_to_update.append(item)
-        Item.objects.bulk_update(items_to_update, ['latest_revision', 'next_parse_time', 'start_parse_time'])
+        Item.objects.bulk_update(items_to_update, ['latest_revision', 'revisions_next_parse_time',
+                                                   'revisions_start_parse_time'])
