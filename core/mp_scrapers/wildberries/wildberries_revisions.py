@@ -2,6 +2,7 @@ import time
 from datetime import timedelta
 from typing import List, Dict, Tuple
 
+from django.db import connection
 from django.utils.timezone import now
 
 from core.models import Item, ItemRevision
@@ -9,8 +10,16 @@ from core.mp_scrapers.wildberries.wildberries_base import WildberriesBaseScraper
 from core.types import RequestBody
 
 
+class Test(WildberriesBaseScraper):
+    @staticmethod
+    def update_from_mp() -> None:
+        print('Updated!')
+
+
 class WildberriesRevisionScraper(WildberriesBaseScraper):
     def update_from_mp(self) -> None:
+        connection.close()
+
         start = time.time()
         items, mp_ids = self._get_items_to_update()
 
