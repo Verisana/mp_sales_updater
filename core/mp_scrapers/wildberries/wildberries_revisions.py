@@ -2,7 +2,7 @@ import time
 from datetime import timedelta
 from typing import List, Dict, Tuple
 
-from django.db import connection
+from django.db import connection, transaction
 from django.utils.timezone import now
 
 from core.models import Item, ItemRevision
@@ -11,8 +11,7 @@ from core.types import RequestBody
 
 
 class Test(WildberriesBaseScraper):
-    @staticmethod
-    def update_from_mp() -> None:
+    def update_from_mp(self) -> None:
         print('Updated!')
 
 
@@ -32,17 +31,31 @@ class WildberriesRevisionScraper(WildberriesBaseScraper):
         print(f'Done in {time.time() - start:0.0f} seconds')
 
     def _get_items_to_update(self) -> Tuple[List[Item], List[int]]:
-        current_time = now()
-        frozen_start_time = current_time + timedelta(minutes=10)
-        filtered_items = Item.objects.select_for_update(skip_locked=True).filter(
-            is_deleted=False, mp_source=self.mp_source, revisions_next_parse_time__lte=current_time,
-            revisions_start_parse_time__gte=frozen_start_time).order_by(
-            'revisions_next_parse_time')[:self.config.bulk_item_step]
-        for item in filtered_items:
-            item.revisions_start_parse_time = current_time
-        Item.objects.bulk_update(filtered_items, ['revisions_start_parse_time'])
-        mp_ids = [item.mp_id for item in filtered_items]
-        return filtered_items, mp_ids
+        with transaction.atomic():
+            filtered_items = Item.objects.select_for_update(skip_locked=True).filter(
+                is_deleted=False, mp_source=self.mp_source, revisions_next_parse_time__lte=now(),
+                revisions_start_parse_time__isnull=True).order_by(
+                'revisions_next_parse_time')[:self.config.bulk_item_step]
+            if filtered_items:
+                self._update_start_parse_time(filtered_items)
+                mp_ids = [item.mp_id for item in filtered_items]
+                return filtered_items, mp_ids
+            else:
+                # Choose timedelta properly!!!
+                frozen_start_time = now() + timedelta(minutes=10)
+                filtered_items = Item.objects.select_for_update(skip_locked=True).filter(
+                    is_deleted=False, mp_source=self.mp_source, revisions_next_parse_time__lte=now(),
+                    revisions_start_parse_time__gte=frozen_start_time).order_by(
+                    'revisions_next_parse_time')[:self.config.bulk_item_step]
+                self._update_start_parse_time(filtered_items)
+                mp_ids = [item.mp_id for item in filtered_items]
+                return filtered_items, mp_ids
+
+    @staticmethod
+    def _update_start_parse_time(items: List[Item]) -> None:
+        for image in items:
+            image.revisions_start_parse_time = now()
+        Item.objects.bulk_update(items, ['revisions_start_parse_time'])
 
     def _get_items_info(self, indices: List[int]) -> List[Dict]:
         if len(indices) == 0:

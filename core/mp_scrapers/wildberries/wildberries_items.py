@@ -4,6 +4,7 @@ from typing import List, Dict, Tuple, Set, Union, Any, Callable, Generator
 
 from bs4 import BeautifulSoup
 from bs4.element import Tag
+from django.db.models import Max
 from django.db.models.base import ModelBase
 from django.utils.timezone import now
 
@@ -23,7 +24,11 @@ class WildberriesItemScraper(WildberriesBaseScraper):
         }
 
     def update_from_mp(self) -> None:
-        self._increment_item_update()
+        start_from = Item.objects.aggregate(Max('mp_id'))['mp_id__max']
+        if start_from is None:
+            start_from = 0
+
+        self._increment_item_update(start_from)
         self._in_category_update()
         self._individual_item_update()
 
@@ -111,13 +116,13 @@ class WildberriesItemScraper(WildberriesBaseScraper):
         self._fill_nones_in_items(colour_id_to_idx, items_info, Colour, 'colour', 'mp_id')
         self._fill_nones_in_items(seller_id_to_idx, items_info, Seller, 'seller', 'name')
 
-        next_parsed_time = now()
+        current_time = now()
         new_items, old_items = [], []
         for item in items_info:
             create_params = {'name': item['name'], 'mp_id': item['mp_id'], 'mp_source': self.mp_source,
                              'root_id': item['root_id'], 'brand': item['brand'], 'colour': item['colour'],
                              'size_name': item['size_name'], 'size_orig_name': item['size_orig_name'],
-                             'seller': item['seller'], 'next_parsed_time': next_parsed_time,
+                             'seller': item['seller'], 'revisions_next_parse_time': current_time,
                              'is_digital': item['is_digital'], 'is_adult': item['is_adult']}
             get_params = {'mp_id': item['mp_id'], 'mp_source': self.mp_source}
 
@@ -280,7 +285,7 @@ class WildberriesItemScraper(WildberriesBaseScraper):
                 if 'blank' not in link:
                     img_link += link
                     break
-            img_obj = Image(mp_link=img_link, mp_source=self.mp_source)
+            img_obj = Image(mp_link=img_link, mp_source=self.mp_source, next_parse_time=now())
             if img_link != 'https:':
                 imgs[int(item['data-popup-nm-id'])] = img_obj
                 link_to_ids[img_link] = int(item['data-popup-nm-id'])
