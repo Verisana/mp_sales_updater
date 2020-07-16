@@ -102,11 +102,6 @@ REST_FRAMEWORK = {
     'PAGE_SIZE': 25,
 }
 
-try:
-    from project.local_settings import *
-except ImportError:
-    print('Warning! Local settings are not defined!')
-
 JSON_LOG_FILE = 'main.json.log'
 
 LOGGING = {
@@ -116,9 +111,9 @@ LOGGING = {
         'verbose': {
             'format': '%(levelname)s %(asctime)s %(module)s %(process)d %(thread)d %(message)s'
         },
-        'logzioFormat': {
-            'format': '{"additional_field": "value"}'
-        },
+        #'logzioFormat': {
+        #    'format': '{"additional_field": "value"}'
+        #},
         'JsonFormatter': {
             '()': 'pythonjsonlogger.jsonlogger.JsonFormatter'
         }
@@ -144,6 +139,7 @@ LOGGING = {
     }
 }
 
-import logging
-logger = logging.getLogger('main')
-logger.info('message', extra={'extra_data_id': 1})
+try:
+    from project.local_settings import *
+except ImportError:
+    print('Warning! Local settings are not defined!')
