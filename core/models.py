@@ -43,9 +43,13 @@ class Item(models.Model):
     latest_revision = models.OneToOneField('ItemRevision', on_delete=models.CASCADE,
                                            null=True, blank=True, related_name='items')
 
-    parse_frequency = models.DurationField(default=timedelta(hours=24))
-    next_parse_time = models.DateTimeField(null=True, blank=True)
-    start_parse_time = models.DateTimeField(null=True, blank=True)
+    items_parse_frequency = models.DurationField(default=timedelta(days=7))
+    items_next_parse_time = models.DateTimeField(null=True, blank=True)
+    items_start_parse_time = models.DateTimeField(null=True, blank=True)
+
+    revisions_parse_frequency = models.DurationField(default=timedelta(hours=24))
+    revisions_next_parse_time = models.DateTimeField(null=True, blank=True)
+    revisions_start_parse_time = models.DateTimeField(null=True, blank=True)
 
     is_deleted = models.BooleanField(default=False)
 
@@ -83,6 +87,10 @@ class ItemCategory(MPTTModel):
     is_deleted = models.BooleanField(default=False)
     mp_category_url = models.CharField(max_length=256, blank=True)
 
+    parse_frequency = models.DurationField(default=timedelta(days=7))
+    next_parse_time = models.DateTimeField(null=True, blank=True)
+    start_parse_time = models.DateTimeField(null=True, blank=True)
+
     created_at = models.DateTimeField(auto_now_add=True)
     modified_at = models.DateTimeField(auto_now=True)
 
@@ -100,6 +108,10 @@ class Image(models.Model):
     image_file = models.ImageField(upload_to='image_model_storage/', blank=True)
     mp_link = models.CharField(max_length=256, unique=True)
     mp_source = models.ForeignKey('Marketplace', on_delete=models.CASCADE)
+
+    parse_frequency = models.DurationField(default=timedelta(days=7))
+    next_parse_time = models.DateTimeField(null=True, blank=True)
+    start_parse_time = models.DateTimeField(null=True, blank=True)
 
     created_at = models.DateTimeField(auto_now_add=True)
     modified_at = models.DateTimeField(auto_now=True)

@@ -1,47 +1,35 @@
 import time
-from typing import List, Generator
+from datetime import timedelta
+from typing import List
 
 from django.core.files.base import ContentFile
-from django.db.models import QuerySet
+from django.db import connection
 from django.utils.timezone import now
 
-from core.types import RequestBody
 from core.models import Image
 from core.mp_scrapers.wildberries.wildberries_base import WildberriesBaseScraper
+from core.types import RequestBody
 
 
 class WildberriesImageScraper(WildberriesBaseScraper):
-    def __init__(self):
-        # Mock property. TODO: write full function for logging and loading update_start_time
-        self.update_start_time = now()
-
     def update_from_mp(self) -> None:
-        images_gen = self._get_images_to_download()
-
-        counter = 1
         start = time.time()
-        for images in images_gen:
-            self._download_images_and_update_fields(images)
+        connection.close()
+        images = self._get_images_to_download()
+        self._download_images_and_update_fields(images)
+        print(f'Done in {time.time() - start:0.0f} seconds')
 
-            print(f'Done step {counter} in {time.time() - start:0.0f} seconds')
-            counter += 1
-            start = time.time()
-
-    def _get_images_to_download(self) -> Generator[List[Image], None, None]:
-        image_no_pics = Image.objects.filter(mp_source=self.mp_source, image_file__isnull=True)
-        yield from self._chunk_images_iterator(image_no_pics)
-
-        not_updated_images = Image.objects.filter(mp_source=self.mp_source, modified_at__lte=self.update_start_time)
-        yield from self._chunk_images_iterator(not_updated_images)
-
-    def _chunk_images_iterator(self, filtered_images: QuerySet) -> Generator[List[Image], None, None]:
-        chunked_images = []
-        for filtered_item in filtered_images.iterator():
-            if len(chunked_images) < self.config.bulk_item_step:
-                chunked_images.append(filtered_item)
-            else:
-                yield chunked_images
-                chunked_images.clear()
+    def _get_images_to_download(self) -> List[Image]:
+        current_time = now()
+        # Choose timedelta properly!!!
+        frozen_start_time = current_time + timedelta(minutes=10)
+        filtered_images = Image.objects.select_for_update(skip_locked=True).filter(
+            mp_source=self.mp_source, next_parse_time__lte=current_time,
+            start_parse_time__gte=frozen_start_time).order_by('next_parse_time')[:self.config.bulk_item_step]
+        for image in filtered_images:
+            image.start_parse_time = current_time
+        Image.objects.bulk_update(filtered_images, ['start_parse_time'])
+        return filtered_images
 
     def _download_images_and_update_fields(self, images: List[Image]) -> None:
         for image in images:
@@ -49,5 +37,7 @@ class WildberriesImageScraper(WildberriesBaseScraper):
             if status_code == 200:
                 image.image_file.save(image.mp_link.split('/')[-1], ContentFile(img_bytes), save=False)
             else:
-                print(f'Cann not find image on link {image.mp_link}')
-        Image.objects.bulk_update(images, ['image_file'])
+                print(f'Can not find image on link {image.mp_link}')
+            image.next_parse_time = now() + image.parse_frequency
+            image.start_parse_time = None
+        Image.objects.bulk_update(images, ['image_file', 'next_parse_time', 'start_parse_time'])
