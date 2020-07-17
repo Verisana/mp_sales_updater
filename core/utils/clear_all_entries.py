@@ -2,9 +2,9 @@ from core.models import Item, ItemRevision, Colour, Brand, Image, Seller
 
 
 def delete_all_entries():
-    Item.objects.all().delete()
-    ItemRevision.objects.all().delete()
-    Colour.objects.all().delete()
-    Image.objects.all().delete()
-    Brand.objects.all().delete()
-    Seller.objects.all().delete()
+    print(Item.objects.all().delete())
+    print(ItemRevision.objects.all().delete())
+    print(Colour.objects.all().delete())
+    print(Image.objects.all().delete())
+    print(Brand.objects.all().delete())
+    print(Seller.objects.all().delete())
