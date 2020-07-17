@@ -34,7 +34,7 @@ class Item(models.Model):
     images = models.ManyToManyField('Image', blank=True, related_name='items')
     seller = models.ForeignKey('Seller', on_delete=models.CASCADE, blank=True, null=True, related_name='items')
     brand = models.ForeignKey('Brand', on_delete=models.CASCADE, blank=True, null=True, related_name='items')
-    colour = models.ForeignKey('Colour', on_delete=models.CASCADE, blank=True, null=True, related_name='items')
+    colour = models.ManyToManyField('Colour', blank=True, related_name='items')
     size_name = models.CharField(max_length=128, blank=True, null=True)
     size_orig_name = models.CharField(max_length=128, blank=True, null=True)
     is_digital = models.BooleanField(default=False)
