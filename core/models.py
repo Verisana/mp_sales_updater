@@ -34,7 +34,7 @@ class Item(models.Model):
     images = models.ManyToManyField('Image', blank=True, related_name='items')
     seller = models.ForeignKey('Seller', on_delete=models.CASCADE, blank=True, null=True, related_name='items')
     brand = models.ForeignKey('Brand', on_delete=models.CASCADE, blank=True, null=True, related_name='items')
-    colour = models.ManyToManyField('Colour', blank=True, related_name='items')
+    colours = models.ManyToManyField('Colour', blank=True, related_name='items')
     size_name = models.CharField(max_length=128, blank=True, null=True)
     size_orig_name = models.CharField(max_length=128, blank=True, null=True)
     is_digital = models.BooleanField(default=False)
@@ -57,7 +57,7 @@ class Item(models.Model):
     modified_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return f'{self.name} ({self.mp_id}) ({self.colour.name}) {self.brand.name}'
+        return f'{self.name} ({self.mp_id}) ({self.colours.name}) {self.brand.name}'
 
 
 class ItemRevision(models.Model):

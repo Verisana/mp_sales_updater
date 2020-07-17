@@ -24,7 +24,7 @@ class MarketplaceSchemeAdmin(ModelAdminAllFieldsMixin, admin.ModelAdmin):
 
 @admin.register(Item)
 class ItemAdmin(ModelAdminAllFieldsMixin, admin.ModelAdmin):
-    filter_horizontal = ('categories', 'images')
+    filter_horizontal = ('categories', 'images', 'colours')
 
 
 @admin.register(ItemRevision)

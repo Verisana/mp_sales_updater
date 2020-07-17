@@ -126,18 +126,28 @@ class WildberriesItemScraper(WildberriesBaseScraper):
                              'is_adult': item['is_adult']}
             get_params = {'mp_id': item['mp_id'], 'mp_source': self.mp_source}
 
-            filtered_items = Item.objects.filter(**get_params)
-            if filtered_items:
-                old_items.extend(filtered_items)
-            else:
+            try:
+                existing_item = Item.objects.get(**get_params)
+                old_items.append(existing_item)
+            except Item.DoesNotExist:
                 new_item = Item(**create_params)
-                new_items.append(new_item)
-                colours.append(item['colour'])
+                try:
+                    last_mp_id = new_items[-1].mp_id
+                except IndexError:
+                    last_mp_id = None
+                if last_mp_id != new_item.mp_id:
+                    new_items.append(new_item)
+                    colours.append([item['colour'].pk])
+                else:
+                    colours[-1].append(item['colour'].pk)
+            except Item.MultipleObjectsReturned:
+                print(f'Something is wrong. You should get one object for params: {get_params}')
+                continue
 
         if new_items:
             new_items = Item.objects.bulk_create(new_items)
-            for new_item, colour in zip(new_items, colours):
-                new_item.colour.add(*colour)
+            for new_item, colour_pks in zip(new_items, colours):
+                new_item.colours.add(*colour_pks)
 
         return old_items + new_items
 
@@ -148,19 +158,19 @@ class WildberriesItemScraper(WildberriesBaseScraper):
         seller_id_to_idx, items_info = defaultdict(list), []
         for item in items:
             if item['colors']:
-                self._fill_objects(brand_id_to_idx, colour_id_to_idx, seller_id_to_idx,
-                                   items_info, item, item['colors'])
+                for colour in item['colors']:
+                    self._fill_objects(brand_id_to_idx, colour_id_to_idx, seller_id_to_idx, items_info, item, colour)
             else:
-                colours = [{'name': ''}]
-                self._fill_objects(brand_id_to_idx, colour_id_to_idx, seller_id_to_idx, items_info, item, colours)
+                colour = {'name': ''}
+                self._fill_objects(brand_id_to_idx, colour_id_to_idx, seller_id_to_idx, items_info, item, colour)
         return brand_id_to_idx, colour_id_to_idx, seller_id_to_idx, items_info
 
     def _fill_objects(self, brand_id_to_idx: Dict[Union[str, int], List[int]],
                       colour_id_to_idx: Dict[Union[str, int], List[int]],
                       seller_id_to_idx: Dict[Union[str, int], List[int]], items_info: List[Dict], item: Dict,
-                      colours: List[Dict]) -> None:
+                      colour: Dict) -> None:
         new_item_info = {'name': item['name'], 'mp_id': item['id'], 'root_id': item['root'], 'brand': None,
-                         'colour': [], 'size_name': '', 'size_orig_name': '', 'seller': None,
+                         'colour': None, 'size_name': '', 'size_orig_name': '', 'seller': None,
                          'is_digital': item['isDigital'], 'is_adult': item['isAdult']}
         if item['sizes']:
             new_item_info['size_name'] = item['sizes'][0]['name']
@@ -175,18 +185,18 @@ class WildberriesItemScraper(WildberriesBaseScraper):
         seller_params = {'name': seller_name, 'mp_source_id': self.mp_source.id}
         self._prepare_model(items_info, seller_id_to_idx, Seller, seller_params, 'seller', ['name', 'mp_source_id'])
 
-        for colour in colours:
-            colour_name = colour.get('name') if colour.get('name') is not None else ''
-            colour_params = {'name': colour_name, 'mp_source': self.mp_source, 'mp_id': colour.get('id')}
-            self._prepare_model(items_info, colour_id_to_idx, Colour, colour_params, 'colour', 'mp_id')
+        colour_name = colour.get('name') if colour.get('name') is not None else ''
+        colour_params = {'name': colour_name, 'mp_source': self.mp_source, 'mp_id': colour.get('id')}
+        self._prepare_model(items_info, colour_id_to_idx, Colour, colour_params, 'colour', 'mp_id')
 
-    def _prepare_model(self, to_fill: List[Dict], fill_id_to_idx: Dict[Union[str, int], List[int]],
+    @staticmethod
+    def _prepare_model(to_fill: List[Dict], fill_id_to_idx: Dict[Union[str, int], List[int]],
                        model: Union[Brand, Colour, Seller, Callable], params: Dict[str, Any], model_name: str,
                        field_for_ident: Union[str, List[str]]) -> None:
         try:
-            to_fill[-1][model_name] = self._fill_from_type(to_fill[-1][model_name], model.objects.get(**params))
+            to_fill[-1][model_name] = model.objects.get(**params)
         except model.DoesNotExist:
-            to_fill[-1][model_name] = self._fill_from_type(to_fill[-1][model_name], model(**params))
+            to_fill[-1][model_name] = model(**params)
             if isinstance(field_for_ident, str):
                 fill_id_to_idx[params[field_for_ident]].append(len(to_fill) - 1)
             else:
@@ -194,21 +204,22 @@ class WildberriesItemScraper(WildberriesBaseScraper):
                 fill_id_to_idx[field_name].append(len(to_fill) - 1)
         except model.MultipleObjectsReturned:
             repeating_items = model.objects.filter(**params)
-            to_fill[-1][model_name] = self._fill_from_type(to_fill[-1][model_name], repeating_items[0])
+            to_fill[-1][model_name] = repeating_items[0]
             for repeating_item in repeating_items[1:]:
                 repeating_item.delete()
 
-    @staticmethod
-    def _fill_from_type(to_fill: Union[None, List], fill: Any) -> Any:
-        if to_fill is None:
-            return fill
-        elif isinstance(to_fill, list):
-            to_fill.append(fill)
-            return to_fill
-        else:
-            print(f"Wrong type of object. to_fill == {to_fill} and fill == {fill}")
+    # @staticmethod
+    # def _fill_from_type(to_fill: Union[None, List], fill: Any) -> Any:
+    #     if to_fill is None:
+    #         return fill
+    #     elif isinstance(to_fill, list):
+    #         to_fill.append(fill)
+    #         return to_fill
+    #     else:
+    #         print(f"Wrong type of object. to_fill == {to_fill} and fill == {fill}")
 
-    def _fill_nones_in_items(self, id_to_idx: Dict[Union[str, int], List[int]],
+    @staticmethod
+    def _fill_nones_in_items(id_to_idx: Dict[Union[str, int], List[int]],
                              items_info: List[Dict], model: Union[ModelBase, Brand, Colour, Seller], model_name: str,
                              field_to_ident: Union[str, List[str]]) -> None:
         new_models = [items_info[idxs[0]][model_name] for idxs in id_to_idx.values()]
@@ -220,7 +231,7 @@ class WildberriesItemScraper(WildberriesBaseScraper):
                 key = ' '.join([model.__getattribute__(field) for field in field_to_ident])
                 idxs = id_to_idx[key]
             for i in idxs:
-                items_info[i][model_name] = self._fill_from_type(items_info[i][model_name], model)
+                items_info[i][model_name] = model
 
     def _in_category_update(self) -> None:
         category_leaves = ItemCategory.objects.filter(children__isnull=True)
