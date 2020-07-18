@@ -15,7 +15,9 @@ class WildberriesImageScraper(WildberriesBaseScraper):
         start = time.time()
         connection.close()
         image = self._get_image_to_download()
-        self._download_image_and_update_fields(image)
+
+        if image is not None:
+            self._download_image_and_update_fields(image)
         print(f'Done in {time.time() - start:0.0f} seconds')
 
     def _get_image_to_download(self) -> Image:
@@ -24,14 +26,6 @@ class WildberriesImageScraper(WildberriesBaseScraper):
                 mp_source=self.mp_source, next_parse_time__lte=now(), start_parse_time__isnull=True).order_by(
                 'next_parse_time').first()
             if image is not None:
-                self._update_start_parse_time(image)
-                return image
-            else:
-                # Choose timedelta properly!!!
-                frozen_start_time = now() + timedelta(minutes=10)
-                image = Image.objects.select_for_update(skip_locked=True).filter(
-                    mp_source=self.mp_source, next_parse_time__lte=now(),
-                    start_parse_time__gte=frozen_start_time).order_by('next_parse_time').first()
                 self._update_start_parse_time(image)
                 return image
 

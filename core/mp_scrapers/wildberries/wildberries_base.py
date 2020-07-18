@@ -40,11 +40,10 @@ class WildberriesProcessPool:
         with multiprocessing.Pool(processes=self.processes) as pool:
             while True:
                 if self.busy_processes < self.processes:
-                    res = pool.apply_async(self.scraper.update_from_mp, callback=self._busy_processes_reducer)
-                    res.get()
+                    pool.apply_async(self.scraper.update_from_mp, callback=self._busy_processes_reducer)
                     self.busy_processes += 1
                 else:
-                    # For the sake of not wasting CPU powers
+                    # For the sake of not wasting CPU powers too much
                     time.sleep(0.3)
 
     def _busy_processes_reducer(self, result):
