@@ -28,7 +28,8 @@ class Command(BaseCommand):
                 scraper.update_from_mp()
             elif action_type == 'revisions':
                 scraper = WildberriesRevisionScraper()
-                wb_process_pool = WildberriesProcessPool(scraper, cpu_multiplier=0)
+                #scraper.update_from_mp()
+                wb_process_pool = WildberriesProcessPool(scraper, cpu_multiplier=1)
                 wb_process_pool.start_process_pool()
             elif action_type == 'images':
                 scraper = WildberriesImageScraper()

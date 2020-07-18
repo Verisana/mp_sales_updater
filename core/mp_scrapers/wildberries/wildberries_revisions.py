@@ -1,5 +1,4 @@
 import time
-from datetime import timedelta
 from typing import List, Dict, Tuple
 
 from django.db import connection, transaction
@@ -27,20 +26,14 @@ class WildberriesRevisionScraper(WildberriesBaseScraper):
 
     def _get_items_to_update(self) -> Tuple[List[Item], List[int]]:
         with transaction.atomic():
-            filtered_items_for_update = Item.objects.filter(
+            filtered_items_for_update = Item.objects.select_for_update(skip_locked=True).filter(
                 is_deleted=False, mp_source=self.mp_source, revisions_next_parse_time__lte=now(),
                 revisions_start_parse_time__isnull=True).order_by(
                 'revisions_next_parse_time')[:self.config.bulk_item_step]
+            Item.objects.filter(pk__in=filtered_items_for_update).update(
+                revisions_start_parse_time=now())
 
-            filtered_items = Item.objects.filter(pk__in=filtered_items_for_update).update(revisions_start_parse_time=now())
-
-            return filtered_items, [item.mp_id for item in filtered_items]
-
-    @staticmethod
-    def _update_start_parse_time(items: List[Item]) -> None:
-        for image in items:
-            image.revisions_start_parse_time = now()
-        Item.objects.bulk_update(items, ['revisions_start_parse_time'])
+            return filtered_items_for_update, [item.mp_id for item in filtered_items_for_update]
 
     def _get_items_info(self, indices: List[int]) -> List[Dict]:
         if len(indices) == 0:
