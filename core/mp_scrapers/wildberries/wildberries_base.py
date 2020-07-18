@@ -48,5 +48,5 @@ class WildberriesProcessPool:
                     # For the sake of not wasting CPU powers
                     time.sleep(0.3)
 
-    def _current_processes_reducer(self):
+    def _current_processes_reducer(self, *args, **kwargs):
         self.current_processes -= 1
