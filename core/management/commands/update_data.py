@@ -3,7 +3,7 @@ from django.core.management.base import BaseCommand, CommandError
 from core.mp_scrapers.wildberries.wildberries_categories import WildberriesCategoryScraper
 from core.mp_scrapers.wildberries.wildberries_images import WildberriesImageScraper
 from core.mp_scrapers.wildberries.wildberries_items import WildberriesItemScraper
-from core.mp_scrapers.wildberries.wildberries_revisions import WildberriesRevisionScraper, Test
+from core.mp_scrapers.wildberries.wildberries_revisions import WildberriesRevisionScraper
 from core.mp_scrapers.wildberries.wildberries_base import WildberriesProcessPool
 
 
@@ -27,9 +27,7 @@ class Command(BaseCommand):
                 scraper = WildberriesItemScraper()
                 scraper.update_from_mp()
             elif action_type == 'revisions':
-                # scraper = WildberriesRevisionScraper()
-                # scraper.update_from_mp()
-                scraper = Test()
+                scraper = WildberriesRevisionScraper()
                 wb_process_pool = WildberriesProcessPool(scraper, cpu_multiplier=0)
                 wb_process_pool.start_process_pool()
             elif action_type == 'images':
