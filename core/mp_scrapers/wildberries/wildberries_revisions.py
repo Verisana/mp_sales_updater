@@ -10,11 +10,6 @@ from core.mp_scrapers.wildberries.wildberries_base import WildberriesBaseScraper
 from core.types import RequestBody
 
 
-class Test(WildberriesBaseScraper):
-    def update_from_mp(self) -> None:
-        print('Updated!')
-
-
 class WildberriesRevisionScraper(WildberriesBaseScraper):
     def update_from_mp(self) -> None:
         connection.close()

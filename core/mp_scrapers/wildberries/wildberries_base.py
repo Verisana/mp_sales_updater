@@ -37,9 +37,6 @@ class WildberriesProcessPool:
         self.current_processes = 0
 
     def start_process_pool(self):
-        # start, end = 0, self.scraper.config.bulk_item_step
-        # step = self.scraper.config.bulk_item_step
-
         with multiprocessing.Pool(processes=self.processes) as pool:
             while True:
                 if self.current_processes < self.processes:
@@ -47,11 +44,8 @@ class WildberriesProcessPool:
                                      error_callback=self._current_processes_reducer)
                     self.current_processes += 1
 
-                    # start += step
-                    # end += step
                 else:
                     # For the sake of not wasting CPU powers
-                    # print('Skip!')
                     time.sleep(0.3)
 
     def _current_processes_reducer(self):
