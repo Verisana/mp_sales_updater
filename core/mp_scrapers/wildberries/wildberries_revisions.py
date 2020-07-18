@@ -32,24 +32,14 @@ class WildberriesRevisionScraper(WildberriesBaseScraper):
 
     def _get_items_to_update(self) -> Tuple[List[Item], List[int]]:
         with transaction.atomic():
-            filtered_items = Item.objects.select_for_update(skip_locked=True).filter(
+            filtered_items_for_update = Item.objects.filter(
                 is_deleted=False, mp_source=self.mp_source, revisions_next_parse_time__lte=now(),
                 revisions_start_parse_time__isnull=True).order_by(
                 'revisions_next_parse_time')[:self.config.bulk_item_step]
-            if filtered_items:
-                self._update_start_parse_time(filtered_items)
-                mp_ids = [item.mp_id for item in filtered_items]
-                return filtered_items, mp_ids
-            else:
-                # Choose timedelta properly!!!
-                frozen_start_time = now() + timedelta(minutes=10)
-                filtered_items = Item.objects.select_for_update(skip_locked=True).filter(
-                    is_deleted=False, mp_source=self.mp_source, revisions_next_parse_time__lte=now(),
-                    revisions_start_parse_time__gte=frozen_start_time).order_by(
-                    'revisions_next_parse_time')[:self.config.bulk_item_step]
-                self._update_start_parse_time(filtered_items)
-                mp_ids = [item.mp_id for item in filtered_items]
-                return filtered_items, mp_ids
+
+            filtered_items = Item.objects.filter(pk__in=filtered_items_for_update).update(revisions_start_parse_time=now())
+
+            return filtered_items, [item.mp_id for item in filtered_items]
 
     @staticmethod
     def _update_start_parse_time(items: List[Item]) -> None:
