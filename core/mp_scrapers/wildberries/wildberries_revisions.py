@@ -11,16 +11,17 @@ from core.types import RequestBody
 
 class WildberriesRevisionScraper(WildberriesBaseScraper):
     def update_from_mp(self) -> None:
+        start = time.time()
         connection.close()
 
-        start = time.time()
         items, mp_ids = self._get_items_to_update()
 
-        items_info = self._get_items_info(mp_ids)
-        self._check_wb_result_fullness(items_info, mp_ids)
+        if len(mp_ids) > 0:
+            items_info = self._get_items_info(mp_ids)
+            self._check_wb_result_fullness(items_info, mp_ids)
 
-        new_revisions = self._create_new_revisions(items_info, items)
-        self._set_new_revisions_to_items(items, new_revisions)
+            new_revisions = self._create_new_revisions(items_info, items)
+            self._set_new_revisions_to_items(items, new_revisions)
 
         print(f'Done in {time.time() - start:0.0f} seconds')
 
@@ -30,8 +31,10 @@ class WildberriesRevisionScraper(WildberriesBaseScraper):
                 is_deleted=False, mp_source=self.mp_source, revisions_next_parse_time__lte=now(),
                 revisions_start_parse_time__isnull=True).order_by(
                 'revisions_next_parse_time')[:self.config.bulk_item_step]
-            Item.objects.filter(pk__in=filtered_items_for_update).update(
-                revisions_start_parse_time=now())
+
+            for item in filtered_items_for_update:
+                item.revisions_start_parse_time = now()
+            Item.objects.bulk_update(filtered_items_for_update, ['revisions_start_parse_time'])
 
             return filtered_items_for_update, [item.mp_id for item in filtered_items_for_update]
 
