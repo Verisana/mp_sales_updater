@@ -1,6 +1,6 @@
 import re
 import pickle
-from typing import List
+from typing import List, Any, Dict
 
 from bs4 import BeautifulSoup
 from bs4.element import Tag
@@ -45,8 +45,9 @@ class WildberriesCategoryScraper(WildberriesBaseScraper):
         for tag in root_node_tags:
             name, url = tag.text, tag.find('a')['href']
             new_node = Node(name, url, parent=None)
+
             category, _ = ItemCategory.objects.get_or_create(name=new_node.name, mp_category_url=new_node.mp_url,
-                                                             mp_source=self.mp_source, level=0)
+                                                             mp_source=self.mp_source, parent=None)
             new_node.db_id = category.id
             root_nodes.append(new_node)
 
@@ -59,11 +60,13 @@ class WildberriesCategoryScraper(WildberriesBaseScraper):
         1. Choose only 'li'
         2. Filter if element in class from exclude_categories
         3. Exclude not root links. For example: .../catalog/detyam/shkola
+        4. Exclude if category name in exclude_categories
         """
-        exclude_categories = {'airticket', 'brands', 'promo-offer'}
+        exclude_categories = {'airticket', 'brands', 'promo-offer', 'тренды'}
         return tag.name == 'li' and \
-            not set(tag['class']) & exclude_categories and \
-            re.fullmatch(self.base_catalog_pattern.format('[^/?]+'), tag.find('a')['href'])
+               not set(tag['class']) & exclude_categories and \
+               re.fullmatch(self.base_catalog_pattern.format('.+'), tag.find('a')['href']) and \
+               tag.find('a').text.lower() not in exclude_categories
 
     def _parse_all_descendants(self, nodes: List[Node], level: int = 0) -> List[Node]:
         for i, node in enumerate(nodes):
@@ -84,18 +87,16 @@ class WildberriesCategoryScraper(WildberriesBaseScraper):
             descendants_bs, is_captcha, _ = self.connector.get_page(RequestBody(node.mp_url, 'get'))
 
             if level == 0:
-                try:
-                    all_items = descendants_bs.find('ul', class_='maincatalog-list-2').findAll('li')
-                except AttributeError:
-                    all_items = descendants_bs.find('ul', class_='maincatalog-list-1').findAll('li')
-
+                all_items = self._extract_catalogs_from_root(descendants_bs)
                 for item in all_items:
                     url = self.config.base_url + item.find('a')['href']
-                    node.descendants.append(self._get_node(item.text, url, node, level))
+                    item_name = item.text if item.text.strip('\n') else item.find('a')['title']
+                    node.descendants.append(self._get_node(item_name, url, node, level))
             else:
                 try:
                     all_items = descendants_bs.find('div', class_='catalog-sidebar').findAll('li')
                 except AttributeError:
+                    print("Can't find catalog sidebar")
                     continue
 
                 is_descendants_started = False
@@ -112,6 +113,23 @@ class WildberriesCategoryScraper(WildberriesBaseScraper):
                         node.descendants.append(self._get_node(item.text, url, node, level))
             self._parse_all_descendants(node.descendants, level + 1)
         return nodes
+
+    @staticmethod
+    def _extract_catalogs_from_root(descendants_bs: BeautifulSoup) -> List[Tag]:
+        all_items = descendants_bs.find('ul', class_='maincatalog-list-2')
+        if all_items is None:
+            all_items = descendants_bs.find('ul', class_='maincatalog-list-2')
+        else:
+            return all_items.findAll('li')
+
+        if all_items is None:
+            category_banners = descendants_bs.findAll('div', class_='banners-zones')
+            # Looking for banners "catalog" in URL and certain class in tag to exclude irrelevant items
+            return list(filter(
+                lambda tag: 'j-banner-shown-stat' in tag.find('a')['class'] and 'catalog' in tag.find('a')['href'],
+                category_banners))
+        else:
+            return all_items.findAll('li')
 
     def _get_node(self, name: str, url: str, parent: Node, level: int) -> Node:
         new_node = Node(name, url, parent=parent)
@@ -130,16 +148,13 @@ class WildberriesCategoryScraper(WildberriesBaseScraper):
         pass
 
     def _save_all_results_in_db(self, parsed_nodes: List[Node], parent: TreeQuerySet = None) -> None:
-        for parsed_node in parsed_nodes:
-            if parent is not None:
-                category, is_created = ItemCategory.objects.get_or_create(name=parsed_node.name,
-                                                                          mp_source=self.mp_source,
-                                                                          parent=parent)
-            else:
-                # If you don't specify level, you get multiple object exception
-                category, is_created = ItemCategory.objects.get_or_create(name=parsed_node.name,
-                                                                          mp_source=self.mp_source,
-                                                                          level=0)
+        for i, parsed_node in enumerate(parsed_nodes):
+            if parent is None:
+                print(f'{i+1}/{len(parsed_nodes)}. Saving {parsed_node.name}')
+
+            category, is_created = ItemCategory.objects.get_or_create(name=parsed_node.name,
+                                                                      mp_source=self.mp_source,
+                                                                      parent=parent)
             category.mp_category_url = parsed_node.mp_url
             category.save()
             parsed_node.db_id = category.id

@@ -148,6 +148,7 @@ class WildberriesItemScraper(WildberriesBaseScraper):
             new_items = Item.objects.bulk_create(new_items)
             for new_item, colour_pks in zip(new_items, colours):
                 new_item.colours.add(*colour_pks)
+                self._individual_item_update(new_item)
 
         return old_items + new_items
 
@@ -207,16 +208,6 @@ class WildberriesItemScraper(WildberriesBaseScraper):
             to_fill[-1][model_name] = repeating_items[0]
             for repeating_item in repeating_items[1:]:
                 repeating_item.delete()
-
-    # @staticmethod
-    # def _fill_from_type(to_fill: Union[None, List], fill: Any) -> Any:
-    #     if to_fill is None:
-    #         return fill
-    #     elif isinstance(to_fill, list):
-    #         to_fill.append(fill)
-    #         return to_fill
-    #     else:
-    #         print(f"Wrong type of object. to_fill == {to_fill} and fill == {fill}")
 
     @staticmethod
     def _fill_nones_in_items(id_to_idx: Dict[Union[str, int], List[int]],
