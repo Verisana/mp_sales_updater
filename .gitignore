@@ -132,3 +132,4 @@ dmypy.json
 /sensitive_info.txt
 /core/utils/webshare_proxies.txt
 /media
+/logs/
