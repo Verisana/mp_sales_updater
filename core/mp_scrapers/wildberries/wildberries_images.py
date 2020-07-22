@@ -1,5 +1,4 @@
 import time
-from datetime import timedelta
 
 from django.core.files.base import ContentFile
 from django.db import connection, transaction

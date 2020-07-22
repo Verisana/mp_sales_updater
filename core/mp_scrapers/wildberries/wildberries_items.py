@@ -1,6 +1,6 @@
 import time
 from collections import defaultdict
-from typing import List, Dict, Tuple, Set, Union, Any, Callable, Generator
+from typing import List, Dict, Tuple, Set, Union, Any, Callable
 
 from bs4 import BeautifulSoup
 from bs4.element import Tag

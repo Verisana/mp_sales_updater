@@ -11,3 +11,4 @@ djangorestframework==3.11.0
 markdown==3.2.2
 django-filter==2.3.0
 python-json-logger==0.1.11
+python-telegram-bot==12.8

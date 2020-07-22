@@ -1,13 +1,17 @@
 import random
+import logging
 from typing import Dict
 
 import requests
 from bs4 import BeautifulSoup
 from core.types import RequestBody
 
+logger = logging.getLogger(__name__)
+
 
 class ProxyManager:
-    def _send_request(self, request_info: RequestBody) -> BeautifulSoup:
+    @staticmethod
+    def _send_request(request_info: RequestBody) -> BeautifulSoup:
         bs = BeautifulSoup('', 'lxml')
         try:
             response = requests.request(request_info.method, request_info.url, headers=request_info.headers,
@@ -16,9 +20,9 @@ class ProxyManager:
             response = response.content
             bs = BeautifulSoup(response, 'lxml')
         except requests.exceptions.BaseHTTPError as e:
-            print(f'Requests error: {e}')
+            logger.warning(f'Requests error while proxy getting: {e}')
         except Exception as e:
-            print(f'Exception error occurred: {e}')
+            logger.warning(f'Exception occurred while proxy getting: {e}')
         return bs
 
     def _get_from_free_proxy_list(self) -> Dict[str, str]:
@@ -40,7 +44,8 @@ class ProxyManager:
                 break
         return proxies
 
-    def _get_proxy_from_webshare(self):
+    @staticmethod
+    def _get_proxy_from_webshare():
         with open('core/utils/webshare_proxies.txt', 'r') as f:
             proxy_lines = f.readlines()
 
@@ -50,5 +55,6 @@ class ProxyManager:
             proxies.append({'http': 'http' + proxy_line, 'https': 'https' + proxy_line})
         return random.choice(proxies)
 
-    def get_proxy(self) -> Dict[str, str]:
-        return self._get_proxy_from_webshare()
+    def get_proxy(self, proxy_source: str = 'webshare') -> Dict[str, str]:
+        if proxy_source == 'webshare':
+            return self._get_proxy_from_webshare()
