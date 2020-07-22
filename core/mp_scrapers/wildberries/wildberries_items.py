@@ -24,17 +24,19 @@ class WildberriesItemScraper(WildberriesBaseScraper):
         }
 
     def update_from_mp(self) -> None:
+        self._increment_item_update()
+        self._in_category_update()
+
+    def _increment_item_update(self) -> None:
         start_from = Item.objects.aggregate(Max('mp_id'))['mp_id__max']
         if start_from is None:
             start_from = 0
 
-        self._increment_item_update(start_from)
-        self._in_category_update()
-
-    def _increment_item_update(self, start_from: int = 1) -> None:
-        # max_item_id = self._get_max_item_id()
-        max_item_id = 13999999
-        print(f'Upper bound found: {max_item_id}')
+        if start_from < self.config.max_item_id:
+            max_item_id = 13999999
+        else:
+            max_item_id = self._get_max_item_id()
+            print(f'New upper bound found: {max_item_id}')
 
         start = time.time()
         for i in range(start_from, max_item_id + 1, self.config.bulk_item_step):

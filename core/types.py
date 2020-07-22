@@ -13,6 +13,7 @@ class ScraperConfigs:
     revision_url: str
     bulk_item_step: int
     use_proxy: bool
+    max_item_id: int
 
 
 @dataclass
