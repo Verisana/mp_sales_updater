@@ -2,6 +2,11 @@ import logging
 from io import BytesIO
 
 import telegram
+from pythonjsonlogger import jsonlogger
+
+
+def get_logger():
+    return logging.getLogger('main')
 
 
 class TelegramHandler(logging.Handler):
@@ -30,3 +35,12 @@ class TelegramHandler(logging.Handler):
         document = telegram.InputFile(BytesIO(text.encode()), filename=f'{record.levelname}_{record.filename}_'
                                                                        f'{record.lineno}.json')
         self.bot.send_document(document=document, **params)
+
+
+class FullJsonFormatter(jsonlogger.JsonFormatter):
+    def add_fields(self, log_record, record, message_dict):
+        super().add_fields(log_record, record, message_dict)
+        fields_to_add = ['asctime', 'created', 'exc_text', 'filename', 'funcName', 'levelname', 'lineno', 'module',
+                         'name', 'pathname', 'process', 'processName']
+        for field in fields_to_add:
+            log_record[field] = getattr(record, field, None)

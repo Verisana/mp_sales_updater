@@ -7,6 +7,9 @@ from django.utils.timezone import now
 from core.models import Image
 from core.mp_scrapers.wildberries.wildberries_base import WildberriesBaseScraper
 from core.types import RequestBody
+from core.utils.logging_helpers import get_logger
+
+logger = get_logger()
 
 
 class WildberriesImageScraper(WildberriesBaseScraper):
@@ -17,7 +20,7 @@ class WildberriesImageScraper(WildberriesBaseScraper):
 
         if image is not None:
             self._download_image_and_update_fields(image)
-        print(f'Done in {time.time() - start:0.0f} seconds')
+        logger.debug(f'Done in {time.time() - start:0.0f} seconds')
 
     def _get_image_to_download(self) -> Image:
         with transaction.atomic():
@@ -38,7 +41,7 @@ class WildberriesImageScraper(WildberriesBaseScraper):
         if status_code == 200:
             image.image_file.save(image.mp_link.split('/')[-1], ContentFile(img_bytes), save=False)
         else:
-            print(f'Can not find image on link {image.mp_link}')
+            logger.error(f'Can not find image on link {image.mp_link}')
         image.next_parse_time = now() + image.parse_frequency
         image.start_parse_time = None
         image.save()

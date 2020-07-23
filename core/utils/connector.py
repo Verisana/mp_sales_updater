@@ -1,5 +1,5 @@
 import json
-from typing import Union, Any, Dict, Tuple
+from typing import Union, Dict, Tuple
 
 import requests
 from requests.models import Response
@@ -7,10 +7,14 @@ from bs4 import BeautifulSoup
 
 from core.types import RequestBody
 from core.utils.proxy_manager import ProxyManager
+from core.utils.logging_helpers import get_logger
+
+logger = get_logger()
 
 
 class Connector:
     """Here is we send all url requests in asynchronous way"""
+
     def __init__(self, use_proxy=True, try_count=10):
         self.pm = ProxyManager()
         self.use_proxy = use_proxy
@@ -33,7 +37,7 @@ class Connector:
             try:
                 response = self._send_request(request_info)
             except requests.exceptions.RequestException as e:
-                print(f'Requests error: {e}')
+                logger.warning(f'Requests error: {e}')
                 continue
 
             is_captcha = False
@@ -42,26 +46,27 @@ class Connector:
                 return bs, is_captcha, response.status_code
             elif request_info.parsing_type == 'json':
                 try:
-                    json_result = self._parse_to_json(response, request_info)
+                    json_result = self._parse_to_json(response)
                     return json_result, is_captcha, response.status_code
                 except json.JSONDecodeError as e:
-                    print(f'JSONDecoderError: {e.msg} occurred in request {request_info} result: {response.text}')
+                    logger.error(
+                        f'JSONDecoderError: {e.msg} occurred in request {request_info} result: {response.text}')
             elif request_info.parsing_type == 'image':
                 return response.content, None, response.status_code
             else:
-                print('Unrecognized type of parsing')
-        print("All attempts to connect have been used")
+                logger.warning('Unrecognized type of parsing')
+        logger.error("All attempts to connect have been used")
         return None, None, None
 
     def _parse_to_bs(self, response: Response, request_info: RequestBody) -> (BeautifulSoup, bool):
         bs = BeautifulSoup(response.content, 'lxml')
 
         is_captcha = self.is_captcha_checker(bs)
-        print(f'Captcha is found in {request_info}') if is_captcha else None
+        logger.error(f'Captcha is found in {request_info}') if is_captcha else None
         return bs, is_captcha
 
     @staticmethod
-    def _parse_to_json(response: Response, request_info: RequestBody) -> Dict:
+    def _parse_to_json(response: Response) -> Dict:
         return response.json()
 
     def _send_request(self, request_info: RequestBody) -> Response:

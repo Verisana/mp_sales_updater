@@ -1,12 +1,12 @@
 import random
-import logging
 from typing import Dict
 
 import requests
 from bs4 import BeautifulSoup
 from core.types import RequestBody
+from core.utils.logging_helpers import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger()
 
 
 class ProxyManager:

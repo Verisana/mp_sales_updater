@@ -1,19 +1,18 @@
-import logging
 import pickle
 import re
 from typing import List
 
 from bs4 import BeautifulSoup
 from bs4.element import Tag
-from django.utils.timezone import now
 from mptt.querysets import TreeQuerySet
 
 from core.models import ItemCategory
 from core.mp_scrapers.wildberries.wildberries_base import WildberriesBaseScraper
 from core.types import RequestBody
 from core.utils.trees import Node
+from core.utils.logging_helpers import get_logger
 
-logger = logging.getLogger(__name__)
+logger = get_logger()
 
 
 class WildberriesCategoryScraper(WildberriesBaseScraper):
@@ -31,13 +30,9 @@ class WildberriesCategoryScraper(WildberriesBaseScraper):
     def update_from_mp(self) -> None:
         bs, is_captcha, _ = self.connector.get_page(RequestBody(self.config.base_categories_url, 'get',
                                                                 headers=self.all_categories_headers))
-        try:
-            a = []
-            a[213]
-        except IndexError as e:
-            logger.exception(e)
-            raise e
 
+        a = []
+        a[3242]
         parsed_nodes = self._parse_bs_response(bs)
         with open('parsed_nodes.p', 'wb') as f:
             pickle.dump(parsed_nodes, f)
@@ -102,7 +97,7 @@ class WildberriesCategoryScraper(WildberriesBaseScraper):
                 try:
                     all_items = descendants_bs.find('div', class_='catalog-sidebar').findAll('li')
                 except AttributeError:
-                    print("Can't find catalog sidebar")
+                    logger.warning("Can't find catalog sidebar")
                     continue
 
                 is_descendants_started = False
@@ -156,7 +151,7 @@ class WildberriesCategoryScraper(WildberriesBaseScraper):
     def _save_all_results_in_db(self, parsed_nodes: List[Node], parent: TreeQuerySet = None) -> None:
         for i, parsed_node in enumerate(parsed_nodes):
             if parent is None:
-                print(f'{i + 1}/{len(parsed_nodes)}. Saving {parsed_node.name}')
+                logger.debug(f'{i + 1}/{len(parsed_nodes)}. Saving {parsed_node.name}')
 
             category, is_created = ItemCategory.objects.get_or_create(name=parsed_node.name,
                                                                       mp_source=self.mp_source,
