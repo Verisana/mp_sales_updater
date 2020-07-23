@@ -7,6 +7,9 @@ from django.utils.timezone import now
 from core.models import Item, ItemRevision
 from core.mp_scrapers.wildberries.wildberries_base import WildberriesBaseScraper
 from core.types import RequestBody
+from core.utils.logging_helpers import get_logger
+
+logger = get_logger()
 
 
 class WildberriesRevisionScraper(WildberriesBaseScraper):
@@ -23,7 +26,7 @@ class WildberriesRevisionScraper(WildberriesBaseScraper):
             new_revisions = self._create_new_revisions(items_info, items)
             self._set_new_revisions_to_items(items, new_revisions)
 
-        print(f'Done in {time.time() - start:0.0f} seconds')
+        logger.debug(f'Done in {time.time() - start:0.0f} seconds')
 
     def _get_items_to_update(self) -> Tuple[List[Item], List[int]]:
         with transaction.atomic():
@@ -55,7 +58,7 @@ class WildberriesRevisionScraper(WildberriesBaseScraper):
             items_info.extend(self._get_items_info(indices[start_from:]))
             return items_info
         else:
-            print(f'Expected valid state from items_info {json_result}')
+            logger.error(f'Expected valid state from items_info {json_result}')
 
     @staticmethod
     def _check_wb_result_fullness(items_info: List[Dict], mp_ids: List[int]) -> None:

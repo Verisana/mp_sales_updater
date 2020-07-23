@@ -11,6 +11,10 @@ from django.utils.timezone import now
 from core.models import ItemCategory, Item, Brand, Colour, Image, Seller
 from core.mp_scrapers.wildberries.wildberries_base import WildberriesBaseScraper
 from core.types import RequestBody
+from project import settings
+from core.utils.logging_helpers import get_logger
+
+logger = get_logger()
 
 
 class WildberriesItemScraper(WildberriesBaseScraper):
@@ -36,7 +40,7 @@ class WildberriesItemScraper(WildberriesBaseScraper):
             max_item_id = 13999999
         else:
             max_item_id = self._get_max_item_id()
-            print(f'New upper bound found: {max_item_id}')
+            logger.info(f'New upper bound found: {max_item_id}')
 
         start = time.time()
         for i in range(start_from, max_item_id + 1, self.config.bulk_item_step):
@@ -51,20 +55,18 @@ class WildberriesItemScraper(WildberriesBaseScraper):
                     item['sellerName'] = seller_id_to_name.get(item['id'])
                 self._add_items_to_db(items_result['data']['products'])
             elif items_result['state'] == 0 and items_result['data']['products']:
-                print(f'Error result in {i}: {sellers_result}')
+                logger.warning(f'Error result in {i}: {sellers_result}')
                 self._add_items_to_db(items_result['data']['products'])
             elif not items_result['data']['products']:
-                print(f'Items response is empty: {items_result}')
+                logger.info(f'Items response is empty: {items_result}')
             else:
-                print(f'Error result in {i}: {items_result}')
+                logger.warning(f'Error result in {i}: {items_result}')
 
-            print(f'{i} elapsed {(time.time() - start):0.0f} seconds')
+            logger.debug(f'{i} elapsed {(time.time() - start):0.0f} seconds')
             start = time.time()
 
-            # For TESTING!!!!!!!!
-            if i > start_from + (self.config.bulk_item_step * 10):
+            if settings.DEBUG and i > start_from + (self.config.bulk_item_step * 10):
                 break
-            # !!!!!!!!!!!!!!!!!!!!!!!
 
     def _get_max_item_id(self) -> int:
         try:
@@ -143,7 +145,7 @@ class WildberriesItemScraper(WildberriesBaseScraper):
                 else:
                     colours[-1].append(item['colour'].pk)
             except Item.MultipleObjectsReturned:
-                print(f'Something is wrong. You should get one object for params: {get_params}')
+                logger.error(f'Something is wrong. You should get one object for params: {get_params}')
                 continue
 
         if new_items:
@@ -276,7 +278,7 @@ class WildberriesItemScraper(WildberriesBaseScraper):
             new_items = self._add_items_to_db(item_json['data']['products'])
             self._add_category_and_imgs(new_items, category_leaf, img_id_to_objs)
         else:
-            print(f'Got bad response for items: {item_json}')
+            logger.warning(f'Got bad response for items: {item_json}')
 
     @staticmethod
     def _add_category_and_imgs(items: List[Item], category_leaf: ItemCategory,
@@ -314,14 +316,14 @@ class WildberriesItemScraper(WildberriesBaseScraper):
         if status_code == 200:
             category = self._parse_category(item_bs)
             if category is not None:
-                print(f'{category.name} set to {item.name}')
+                logger.debug(f'{category.name} set to {item.name}')
                 item.categories.add(category)
             else:
-                print(f"Can't find category for item name = {item.name} and mp_id = {item.mp_id}")
+                logger.info(f"Can't find category for item name = {item.name} and mp_id = {item.mp_id}")
         else:
             item.is_deleted = True
             item.save()
-            print(f'item {item.mp_id} is not used anymore')
+            logger.info(f'item {item.mp_id} is not used anymore')
 
     def _parse_category(self, item_bs: BeautifulSoup) -> ItemCategory:
         list_of_breadcrumbs = item_bs.find('ul', class_="bread-crumbs")
@@ -350,8 +352,8 @@ class WildberriesItemScraper(WildberriesBaseScraper):
             try:
                 return ItemCategory.objects.get(**params)
             except ItemCategory.DoesNotExist as e:
-                print(f'Item Category does not exist: {e}')
+                logger.error(f'Item Category does not exist: {e}')
         else:
-            print(f'No category name sent to function: {name}, {parent}, {parent_parent}')
+            logger.error(f'No category name sent to function: {name}, {parent}, {parent_parent}')
 
         # Consider catching Multiple Object Return Error
