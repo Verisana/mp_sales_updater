@@ -30,9 +30,6 @@ class WildberriesCategoryScraper(WildberriesBaseScraper):
     def update_from_mp(self) -> None:
         bs, is_captcha, _ = self.connector.get_page(RequestBody(self.config.base_categories_url, 'get',
                                                                 headers=self.all_categories_headers))
-
-        a = []
-        a[3242]
         parsed_nodes = self._parse_bs_response(bs)
         with open('parsed_nodes.p', 'wb') as f:
             pickle.dump(parsed_nodes, f)
