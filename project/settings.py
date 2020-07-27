@@ -20,6 +20,7 @@ DEBUG = True
 ALLOWED_HOSTS = []
 
 INSTALLED_APPS = [
+    'django_extensions',
     'rest_framework',
     'mptt',
     'core.apps.CoreConfig',
