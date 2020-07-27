@@ -14,3 +14,4 @@ python-telegram-bot==12.8
 django-extensions==3.0.3
 psycopg2-binary==2.8.5
 fabric==2.5.0
+sentry-sdk==0.16.2

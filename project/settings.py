@@ -106,7 +106,4 @@ REST_FRAMEWORK = {
     'PAGE_SIZE': 25,
 }
 
-try:
-    from project.local_settings import *
-except ImportError:
-    logger.warning('Warning! Local settings are not defined!')
+from project.local_settings import *
