@@ -13,3 +13,5 @@ django-filter==2.3.0
 python-json-logger==0.1.11
 python-telegram-bot==12.8
 django-extensions==3.0.3
+psycopg2-binary==2.8.5
+fabric==2.5.0
