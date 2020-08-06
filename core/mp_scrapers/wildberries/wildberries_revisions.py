@@ -13,7 +13,7 @@ logger = get_logger()
 
 
 class WildberriesRevisionScraper(WildberriesBaseScraper):
-    def update_from_mp(self) -> None:
+    def update_from_mp(self) -> int:
         start = time.time()
         connection.close()
 
@@ -27,6 +27,7 @@ class WildberriesRevisionScraper(WildberriesBaseScraper):
             self._set_new_revisions_to_items(items, new_revisions)
 
         logger.debug(f'Done in {time.time() - start:0.0f} seconds')
+        return 0
 
     def _get_items_to_update(self) -> Tuple[List[Item], List[int]]:
         with transaction.atomic():

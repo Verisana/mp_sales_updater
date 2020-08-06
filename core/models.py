@@ -53,6 +53,11 @@ class Item(models.Model):
 
     is_deleted = models.BooleanField(default=False)
 
+    # This flag is needed because we can't select FOR UPDATE from ManyToMany field with left outer join
+    is_categories_filled = models.BooleanField(default=False)
+
+    no_individual_category = models.BooleanField(default=False)
+
     created_at = models.DateTimeField(auto_now_add=True)
     modified_at = models.DateTimeField(auto_now=True)
 

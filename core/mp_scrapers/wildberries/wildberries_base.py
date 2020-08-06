@@ -5,6 +5,9 @@ from abc import ABC, abstractmethod
 from core.models import Marketplace, MarketplaceScheme
 from core.mp_scrapers.configs import WILDBERRIES_CONFIG
 from core.utils.connector import Connector
+from core.utils.logging_helpers import get_logger
+
+logger = get_logger()
 
 
 def get_mp_wb() -> Marketplace:
@@ -22,7 +25,7 @@ class WildberriesBaseScraper(ABC):
     mp_source = get_mp_wb()
 
     @abstractmethod
-    def update_from_mp(self) -> None:
+    def update_from_mp(self) -> int:
         raise NotImplementedError
 
 
@@ -40,8 +43,12 @@ class WildberriesProcessPool:
         with multiprocessing.Pool(processes=self.processes) as pool:
             while True:
                 if self.busy_processes < self.processes:
-                    pool.apply_async(self.scraper.update_from_mp, callback=self._busy_processes_reducer)
+                    res = pool.apply_async(self.scraper.update_from_mp, callback=self._busy_processes_reducer)
                     self.busy_processes += 1
+                    res_code = res.get()
+                    if res_code == -1:
+                        logger.info(f'Multiprocessing pool stopping. Got result code -1')
+                        break
                 else:
                     # For the sake of not wasting CPU powers too much
                     time.sleep(0.3)

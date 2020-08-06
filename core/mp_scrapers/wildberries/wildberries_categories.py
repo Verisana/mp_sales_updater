@@ -27,7 +27,7 @@ class WildberriesCategoryScraper(WildberriesBaseScraper):
         }
         self.base_catalog_pattern = 'https://www.wildberries.ru/catalog/{}'
 
-    def update_from_mp(self) -> None:
+    def update_from_mp(self) -> int:
         bs, is_captcha, _ = self.connector.get_page(RequestBody(self.config.base_categories_url, 'get',
                                                                 headers=self.all_categories_headers))
         parsed_nodes = self._parse_bs_response(bs)
@@ -35,11 +35,13 @@ class WildberriesCategoryScraper(WildberriesBaseScraper):
             pickle.dump(parsed_nodes, f)
 
         self._check_db_consistency()
+        return 0
 
-    def update_from_file(self, load_file: str):
+    def update_from_file(self, load_file: str) -> int:
         parsed_nodes = pickle.load(open(load_file, 'rb'))
         self._save_all_results_in_db(parsed_nodes)
         self._check_db_consistency()
+        return 0
 
     def _parse_bs_response(self, bs: BeautifulSoup) -> List[Node]:
         root_node_tags = bs.find('ul', class_='topmenus').findAll(self._check_root_matching)

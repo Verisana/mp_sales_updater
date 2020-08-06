@@ -13,14 +13,17 @@ logger = get_logger()
 
 
 class WildberriesImageScraper(WildberriesBaseScraper):
-    def update_from_mp(self) -> None:
+    def update_from_mp(self) -> int:
         start = time.time()
         connection.close()
         image = self._get_image_to_download()
 
         if image is not None:
             self._download_image_and_update_fields(image)
-        logger.debug(f'Done in {time.time() - start:0.0f} seconds')
+            logger.debug(f'Done in {time.time() - start:0.0f} seconds')
+        else:
+            return -1
+        return 0
 
     def _get_image_to_download(self) -> Image:
         with transaction.atomic():
