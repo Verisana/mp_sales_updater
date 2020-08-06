@@ -4,6 +4,7 @@ from typing import List, Dict, Tuple, Set, Union, Any, Callable
 
 from bs4 import BeautifulSoup
 from bs4.element import Tag
+from django.db import connection, transaction
 from django.db.models import Max
 from django.db.models.base import ModelBase
 from django.utils.timezone import now
@@ -27,9 +28,10 @@ class WildberriesItemScraper(WildberriesBaseScraper):
             'x-requested-with': 'XMLHttpRequest',
         }
 
-    def update_from_mp(self) -> None:
+    def update_from_mp(self) -> int:
         self._increment_item_update()
         self._in_category_update()
+        return 0
 
     def _increment_item_update(self) -> None:
         start_from = Item.objects.aggregate(Max('mp_id'))['mp_id__max']
@@ -152,7 +154,6 @@ class WildberriesItemScraper(WildberriesBaseScraper):
             new_items = Item.objects.bulk_create(new_items)
             for new_item, colour_pks in zip(new_items, colours):
                 new_item.colours.add(*colour_pks)
-                self._individual_item_update(new_item)
 
         return old_items + new_items
 
@@ -234,10 +235,6 @@ class WildberriesItemScraper(WildberriesBaseScraper):
         for category_leaf in category_leaves:
             self._process_all_pages(category_leaf)
 
-            # DEBUGGING !!!!!!!!!!!!!
-            break
-            # DEBUGGING !!!!!!!!!!!!!
-
     def _process_all_pages(self, category_leaf: ItemCategory):
         counter = 1
         while True:
@@ -287,6 +284,9 @@ class WildberriesItemScraper(WildberriesBaseScraper):
         for item in items:
             item.categories.add(category_leaf)
             item.images.add(item_imgs[item.mp_id])
+            if not item.is_categories_filled:
+                item.is_categories_filled = True
+                item.save()
             updated_ids.add(item.mp_id)
         return updated_ids
 
@@ -310,9 +310,39 @@ class WildberriesItemScraper(WildberriesBaseScraper):
                 link_to_ids[img_link] = int(item['data-popup-nm-id'])
         return mp_ids, imgs, link_to_ids
 
+
+class WildberriesItemCategoryScraper(WildberriesBaseScraper):
+    def update_from_mp(self) -> int:
+        start = time.time()
+        connection.close()
+
+        item = self._get_item_to_update()
+
+        if item is not None:
+            self._individual_item_update(item)
+            logger.debug(f'Done in {time.time() - start:0.0f} seconds')
+        else:
+            return -1
+        return 0
+
+    def _get_item_to_update(self) -> Item:
+        with transaction.atomic():
+            item = Item.objects.select_for_update(skip_locked=True).filter(
+                mp_source=self.mp_source, items_start_parse_time__isnull=True, is_deleted=False,
+                no_individual_category=False, is_categories_filled=False).first()
+            if item:
+                self._update_start_parse_time(item)
+                return item
+
+    @staticmethod
+    def _update_start_parse_time(item: Item) -> None:
+        item.items_start_parse_time = now()
+        item.save()
+
     def _individual_item_update(self, item: Item):
         item_bs, is_captcha, status_code = self.connector.get_page(RequestBody(
             self.config.individual_item_url.format(item.mp_id), 'get'))
+        item.items_start_parse_time = None
         if status_code == 200:
             category = self._parse_category(item_bs)
             if category is not None:
@@ -320,10 +350,11 @@ class WildberriesItemScraper(WildberriesBaseScraper):
                 item.categories.add(category)
             else:
                 logger.info(f"Can't find category for item name = {item.name} and mp_id = {item.mp_id}")
+                item.no_individual_category = True
         else:
             item.is_deleted = True
-            item.save()
             logger.info(f'item {item.mp_id} is not used anymore')
+        item.save()
 
     def _parse_category(self, item_bs: BeautifulSoup) -> ItemCategory:
         list_of_breadcrumbs = item_bs.find('ul', class_="bread-crumbs")
