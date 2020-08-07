@@ -133,3 +133,4 @@ dmypy.json
 /core/utils/webshare_proxies.txt
 /media
 /logs/
+/initial_setup_do.sh
