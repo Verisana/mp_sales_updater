@@ -137,12 +137,12 @@ LOGGING = {
             'class': 'logging.FileHandler',
             'filename': local_settings.json_log_file,
             'level': 'INFO',
-            'formatter': 'FullJsonFormatter'
+            'formatter': 'FullJsonFormatter',
         },
         'console': {
             'class': 'logging.StreamHandler',
             'level': 'DEBUG',
-            'formatter': 'verbose'
+            'formatter': 'verbose',
         },
     },
     'loggers': {
@@ -152,3 +152,5 @@ LOGGING = {
         },
     }
 }
+
+WEBSHARE_PROXY_API = local_settings.webshare_proxy_api

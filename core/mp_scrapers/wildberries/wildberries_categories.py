@@ -28,9 +28,14 @@ class WildberriesCategoryScraper(WildberriesBaseScraper):
         self.base_catalog_pattern = 'https://www.wildberries.ru/catalog/{}'
 
     def update_from_mp(self) -> int:
+        logger.info(f'Started parsing categories from marketplace')
         bs, is_captcha, _ = self.connector.get_page(RequestBody(self.config.base_categories_url, 'get',
                                                                 headers=self.all_categories_headers))
-        parsed_nodes = self._parse_bs_response(bs)
+        try:
+            parsed_nodes = self._parse_bs_response(bs)
+        except KeyboardInterrupt:
+            return -1
+
         with open('parsed_nodes.p', 'wb') as f:
             pickle.dump(parsed_nodes, f)
 
@@ -38,8 +43,13 @@ class WildberriesCategoryScraper(WildberriesBaseScraper):
         return 0
 
     def update_from_file(self, load_file: str) -> int:
+        logger.info(f'Started parsing categories from file')
         parsed_nodes = pickle.load(open(load_file, 'rb'))
-        self._save_all_results_in_db(parsed_nodes)
+        try:
+            self._save_all_results_in_db(parsed_nodes)
+        except KeyboardInterrupt:
+            return -1
+
         self._check_db_consistency()
         return 0
 
@@ -150,7 +160,7 @@ class WildberriesCategoryScraper(WildberriesBaseScraper):
     def _save_all_results_in_db(self, parsed_nodes: List[Node], parent: TreeQuerySet = None) -> None:
         for i, parsed_node in enumerate(parsed_nodes):
             if parent is None:
-                logger.debug(f'{i + 1}/{len(parsed_nodes)}. Saving {parsed_node.name}')
+                logger.info(f'{i + 1}/{len(parsed_nodes)}. Saving {parsed_node.name}')
 
             category, is_created = ItemCategory.objects.get_or_create(name=parsed_node.name,
                                                                       mp_source=self.mp_source,
