@@ -19,6 +19,8 @@ SECRET_KEY = local_settings.secret_key
 DEBUG = local_settings.debug
 ALLOWED_HOSTS = local_settings.allowed_hosts
 INTERNAL_IPS = local_settings.internal_ips
+CSRF_COOKIE_SECURE = local_settings.csrf_cookie_secure
+SESSION_COOKIE_SECURE = local_settings.session_cookie_secure
 
 INSTALLED_APPS = [
     'django_extensions',
@@ -99,7 +101,9 @@ USE_L10N = True
 
 USE_TZ = True
 
+STATIC_ROOT = os.path.join(BASE_DIR, 'static')
 STATIC_URL = '/static/'
+
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
 MEDIA_URL = '/media/'
 

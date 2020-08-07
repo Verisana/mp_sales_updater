@@ -6,6 +6,8 @@ from typing import List
 class LocalSettings:
     secret_key: str
     debug: bool
+    csrf_cookie_secure: bool
+    session_cookie_secure: bool
     allowed_hosts: List[str]
     internal_ips: List[str]
     time_zone: str
