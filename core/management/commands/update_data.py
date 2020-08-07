@@ -22,7 +22,7 @@ class Command(BaseCommand):
         mp = options['mp'].lower()
         action_type = options['type'].lower()
         try:
-            source_file = options.get('source').lower()
+            source_file = options.get('source_file').lower()
         except AttributeError:
             source_file = None
         try:
