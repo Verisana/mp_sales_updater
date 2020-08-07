@@ -134,3 +134,4 @@ dmypy.json
 /media
 /logs/
 /initial_setup_do.sh
+/fabric_deploy_util.py
