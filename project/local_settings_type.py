@@ -17,3 +17,4 @@ class LocalSettings:
     db_port: str
     sentry_connection_info: str
     json_log_file: str
+    webshare_proxy_api: str
