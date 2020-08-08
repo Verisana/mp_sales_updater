@@ -64,11 +64,8 @@ class WildberriesItemScraper(WildberriesBaseScraper):
             else:
                 logger.warning(f'Error result in {i}: {items_result}')
 
-            logger.debug(f'{i} elapsed {(time.time() - start):0.0f} seconds')
+            logger.info(f'{i} elapsed {(time.time() - start):0.0f} seconds')
             start = time.time()
-
-            if settings.DEBUG and i > start_from + (self.config.bulk_item_step * 10):
-                break
 
     def _get_max_item_id(self) -> int:
         try:
@@ -232,8 +229,10 @@ class WildberriesItemScraper(WildberriesBaseScraper):
     def _in_category_update(self) -> None:
         category_leaves = ItemCategory.objects.filter(children__isnull=True)
 
-        for category_leaf in category_leaves:
+        for i, category_leaf in enumerate(category_leaves):
+            start = time.time()
             self._process_all_pages(category_leaf)
+            logger.info(f'{i+1}/{len(category_leaf)} elapsed {(time.time() - start):0.0f} seconds')
 
     def _process_all_pages(self, category_leaf: ItemCategory):
         counter = 1
@@ -244,6 +243,7 @@ class WildberriesItemScraper(WildberriesBaseScraper):
             if status_code == 404:
                 break
             else:
+                logger.debug(f'\tPage number {counter} for {category_leaf.name}')
                 self._process_items_on_page(bs, category_leaf)
             counter += 1
 
