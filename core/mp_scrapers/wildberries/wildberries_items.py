@@ -39,7 +39,7 @@ class WildberriesItemScraper(WildberriesBaseScraper):
             start_from = 0
 
         if start_from < self.config.max_item_id:
-            max_item_id = 13999999
+            max_item_id = self.config.max_item_id
         else:
             max_item_id = self._get_max_item_id()
             logger.info(f'New upper bound found: {max_item_id}')

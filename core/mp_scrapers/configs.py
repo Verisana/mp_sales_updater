@@ -12,5 +12,5 @@ WILDBERRIES_CONFIG = ScraperConfigs(
     # Request size becomes too large to handle for big ids
     bulk_item_step=800,
     use_proxy=True,
-    max_item_id=13999999,
+    max_item_id=15000000,
 )
