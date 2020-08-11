@@ -50,7 +50,7 @@ class Connector:
                     return json_result, is_captcha, response.status_code
                 except json.JSONDecodeError as e:
                     logger.error(
-                        f'JSONDecoderError: {e.msg} occurred in request {request_info} result: {response.text}')
+                        f'JSONDecoderError: {e.msg}')
             elif request_info.parsing_type == 'image':
                 return response.content, None, response.status_code
             else:
