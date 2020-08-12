@@ -13,7 +13,7 @@ logger = get_logger()
 
 
 class Connector:
-    """Here is we send all url requests in asynchronous way"""
+    """Here is we send all url requests"""
 
     def __init__(self, use_proxy=True, try_count=10):
         self.pm = ProxyManager()

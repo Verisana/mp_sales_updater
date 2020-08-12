@@ -19,8 +19,8 @@ class ProxyManager:
             response.raise_for_status()
             response = response.content
             bs = BeautifulSoup(response, 'lxml')
-        except requests.exceptions.BaseHTTPError as e:
-            logger.warning(f'Requests error while proxy getting: {e}')
+        except requests.exceptions.RequestException as e:
+            logger.warning(f'Requests exception occurred while proxy getting: {e}')
         except Exception as e:
             logger.warning(f'Exception occurred while proxy getting: {e}')
         return bs

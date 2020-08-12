@@ -2,7 +2,8 @@ from django.core.management.base import BaseCommand, CommandError
 
 from core.mp_scrapers.wildberries.wildberries_categories import WildberriesCategoryScraper
 from core.mp_scrapers.wildberries.wildberries_images import WildberriesImageScraper
-from core.mp_scrapers.wildberries.wildberries_items import WildberriesItemScraper, WildberriesItemCategoryScraper
+from core.mp_scrapers.wildberries.wildberries_items import WildberriesIndividualItemCategoryScraper, \
+    WildberriesIncrementItemScraper, WildberriesItemInCategoryScraper
 from core.mp_scrapers.wildberries.wildberries_revisions import WildberriesRevisionScraper
 from core.mp_scrapers.wildberries.wildberries_base import WildberriesProcessPool
 from core.utils.logging_helpers import get_logger
@@ -33,11 +34,14 @@ class Command(BaseCommand):
                         scraper.update_from_file(source_file)
                     else:
                         scraper.update_from_mp()
-                elif action_type == 'items_full':
-                    scraper = WildberriesItemScraper()
+                elif action_type == 'items_increment':
+                    scraper = WildberriesIncrementItemScraper()
+                    scraper.update_from_mp()
+                elif action_type == 'items_in_category':
+                    scraper = WildberriesItemInCategoryScraper()
                     scraper.update_from_mp()
                 elif action_type == 'items_individual_category':
-                    scraper = WildberriesItemCategoryScraper()
+                    scraper = WildberriesIndividualItemCategoryScraper()
                     wb_process_pool = WildberriesProcessPool(scraper, cpu_multiplier=1)
                     wb_process_pool.start_process_pool()
                 elif action_type == 'revisions':
