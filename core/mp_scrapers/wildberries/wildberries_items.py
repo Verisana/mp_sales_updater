@@ -12,13 +12,12 @@ from django.utils.timezone import now
 from core.models import ItemCategory, Item, Brand, Colour, Image, Seller
 from core.mp_scrapers.wildberries.wildberries_base import WildberriesBaseScraper
 from core.types import RequestBody
-from project import settings
 from core.utils.logging_helpers import get_logger
 
 logger = get_logger()
 
 
-class WildberriesItemScraper(WildberriesBaseScraper):
+class WildberriesItemBase(WildberriesBaseScraper):
     xmlhttp_header: Dict[str, str]
 
     def __init__(self):
@@ -29,82 +28,9 @@ class WildberriesItemScraper(WildberriesBaseScraper):
         }
 
     def update_from_mp(self) -> int:
-        self._increment_item_update()
-        self._in_category_update()
-        return 0
+        raise NotImplementedError
 
-    def _increment_item_update(self) -> None:
-        start_from = Item.objects.aggregate(Max('mp_id'))['mp_id__max']
-        if start_from is None:
-            start_from = 0
-
-        if start_from < self.config.max_item_id:
-            max_item_id = self.config.max_item_id
-        else:
-            max_item_id = self._get_max_item_id()
-            logger.info(f'New upper bound found: {max_item_id}')
-
-        start = time.time()
-        for i in range(start_from, max_item_id + 1, self.config.bulk_item_step):
-            indexes_to_request = list(range(i, min(max_item_id + 1, i + self.config.bulk_item_step)))
-            items_result = self._get_item_or_seller_info(indexes_to_request, self.config.items_api_url, ';', )
-            sellers_result = self._get_item_or_seller_info(indexes_to_request,
-                                                           self.config.seller_url, ',', is_special_header=True)
-
-            if items_result['state'] == 0 and sellers_result['resultState'] == 0 and items_result['data']['products']:
-                seller_id_to_name = {i['cod1S']: i['supplierName'] for i in sellers_result['value']}
-                for item in items_result['data']['products']:
-                    item['sellerName'] = seller_id_to_name.get(item['id'])
-                self._add_items_to_db(items_result['data']['products'])
-            elif items_result['state'] == 0 and items_result['data']['products']:
-                logger.warning(f'Error result in {i}: {sellers_result}')
-                self._add_items_to_db(items_result['data']['products'])
-            elif not items_result['data']['products']:
-                logger.info(f'Items response is empty: {items_result}')
-            else:
-                logger.warning(f'Error result in {i}: {items_result}')
-
-            logger.info(f'{i} elapsed {(time.time() - start):0.0f} seconds')
-            start = time.time()
-
-    def _get_max_item_id(self) -> int:
-        try:
-            latest = Item.objects.latest('mp_id').mp_id
-        except Item.DoesNotExist:
-            latest = 1
-
-        if latest == 1:
-            step_size = 5000000
-        else:
-            step_size = 100000
-        lower, upper = self._get_rough_bounds(latest, step_size)
-        return self._get_max_in_bounds(lower, upper)
-
-    def _get_rough_bounds(self, latest: int, step_size: int) -> Tuple[int, int]:
-        indexes_to_request = [latest, latest + step_size]
-        result = self._get_item_or_seller_info(indexes_to_request, self.config.items_api_url, ';')
-
-        # Find roughly lower and upper bounds
-        while result['state'] == 0:
-            latest += step_size
-            indexes_to_request = [latest, latest + step_size]
-            result = self._get_item_or_seller_info(indexes_to_request, self.config.items_api_url, ';')
-        return latest, latest + step_size
-
-    def _get_max_in_bounds(self, min_id: int, max_id: int) -> int:
-        middle = ((max_id - min_id) // 2) + min_id
-
-        if middle == min_id:
-            return middle
-        else:
-            indexes_to_request = [min_id, middle]
-            result = self._get_item_or_seller_info(indexes_to_request, self.config.items_api_url, ';')
-            if result['state'] == 0:
-                return self._get_max_in_bounds(middle + 1, max_id)
-            else:
-                return self._get_max_in_bounds(min_id, middle - 1)
-
-    def _get_item_or_seller_info(self, indices: List[int], url: str, sep: str, is_special_header: bool = False) -> Dict:
+    def get_item_or_seller_info(self, indices: List[int], url: str, sep: str, is_special_header: bool = False) -> Dict:
         indices = sep.join(map(str, indices))
         url = url.format(indices)
         headers = self.xmlhttp_header if is_special_header else None
@@ -112,7 +38,7 @@ class WildberriesItemScraper(WildberriesBaseScraper):
                                                                 method='get', parsing_type='json', headers=headers))
         return json_result
 
-    def _add_items_to_db(self, items: List[Dict]) -> List[Item]:
+    def add_items_to_db(self, items: List[Dict]) -> List[Item]:
         brand_id_to_idx, colour_id_to_idx, seller_id_to_idx, items_info = self._aggregate_info_from_items(items)
 
         self._fill_nones_in_items(brand_id_to_idx, items_info, Brand, 'brand', 'mp_id')
@@ -151,7 +77,6 @@ class WildberriesItemScraper(WildberriesBaseScraper):
             new_items = Item.objects.bulk_create(new_items)
             for new_item, colour_pks in zip(new_items, colours):
                 new_item.colours.add(*colour_pks)
-
         return old_items + new_items
 
     def _aggregate_info_from_items(self, items: List[Dict]) -> Tuple[
@@ -226,13 +151,93 @@ class WildberriesItemScraper(WildberriesBaseScraper):
             for i in idxs:
                 items_info[i][model_name] = model
 
-    def _in_category_update(self) -> None:
+
+class WildberriesIncrementItemScraper(WildberriesItemBase):
+    def __init__(self):
+        super().__init__()
+        mp_id_max = Item.objects.aggregate(Max('mp_id'))['mp_id__max']
+        self.last_parsed = 0 if mp_id_max is None else mp_id_max
+
+    def update_from_mp(self) -> int:
+        start_from = self.last_parsed
+        if start_from < self.config.max_item_id:
+            max_item_id = self.config.max_item_id
+        else:
+            max_item_id = self._get_max_item_id()
+            logger.info(f'New upper bound found: {max_item_id}')
+
+        start = time.time()
+        for i in range(start_from, max_item_id + 1, self.config.bulk_item_step):
+            indexes_to_request = list(range(i, min(max_item_id + 1, i + self.config.bulk_item_step)))
+            items_result = self.get_item_or_seller_info(indexes_to_request, self.config.items_api_url, ';', )
+            sellers_result = self.get_item_or_seller_info(indexes_to_request,
+                                                          self.config.seller_url, ',', is_special_header=True)
+
+            if items_result['state'] == 0 and sellers_result['resultState'] == 0 and items_result['data']['products']:
+                seller_id_to_name = {i['cod1S']: i['supplierName'] for i in sellers_result['value']}
+                for item in items_result['data']['products']:
+                    item['sellerName'] = seller_id_to_name.get(item['id'])
+                self.add_items_to_db(items_result['data']['products'])
+            elif items_result['state'] == 0 and items_result['data']['products']:
+                logger.warning(f'Error result in {i}: {sellers_result}')
+                self.add_items_to_db(items_result['data']['products'])
+            elif not items_result['data']['products']:
+                logger.info(f'Items response is empty: {items_result}')
+            else:
+                logger.warning(f'Error result in {i}: {items_result}')
+
+            logger.info(f'{i} elapsed {(time.time() - start):0.0f} seconds')
+            start = time.time()
+        return 0
+
+    def _get_max_item_id(self) -> int:
+        try:
+            latest = Item.objects.latest('mp_id').mp_id
+        except Item.DoesNotExist:
+            latest = 1
+
+        if latest == 1:
+            step_size = 5000000
+        else:
+            step_size = 100000
+        lower, upper = self._get_rough_bounds(latest, step_size)
+        return self._get_max_in_bounds(lower, upper)
+
+    def _get_rough_bounds(self, latest: int, step_size: int) -> Tuple[int, int]:
+        indexes_to_request = [latest, latest + step_size]
+        result = self.get_item_or_seller_info(indexes_to_request, self.config.items_api_url, ';')
+
+        # Find roughly lower and upper bounds
+        while result['state'] == 0:
+            latest += step_size
+            indexes_to_request = [latest, latest + step_size]
+            result = self.get_item_or_seller_info(indexes_to_request, self.config.items_api_url, ';')
+        return latest, latest + step_size
+
+    def _get_max_in_bounds(self, min_id: int, max_id: int) -> int:
+        middle = ((max_id - min_id) // 2) + min_id
+
+        if middle == min_id:
+            return middle
+        else:
+            indexes_to_request = [min_id, middle]
+            result = self.get_item_or_seller_info(indexes_to_request, self.config.items_api_url, ';')
+            if result['state'] == 0:
+                return self._get_max_in_bounds(middle + 1, max_id)
+            else:
+                return self._get_max_in_bounds(min_id, middle - 1)
+
+
+class WildberriesItemInCategoryScraper(WildberriesItemBase):
+    def update_from_mp(self) -> int:
         category_leaves = ItemCategory.objects.filter(children__isnull=True)
 
         for i, category_leaf in enumerate(category_leaves):
             start = time.time()
             self._process_all_pages(category_leaf)
             logger.info(f'{i+1}/{len(category_leaf)} elapsed {(time.time() - start):0.0f} seconds')
+
+        return 0
 
     def _process_all_pages(self, category_leaf: ItemCategory):
         counter = 1
@@ -270,9 +275,9 @@ class WildberriesItemScraper(WildberriesBaseScraper):
                                                   img_id_to_objs) if available_items else set()
         not_in_db_ids = set(item_ids) - updated_ids
 
-        item_json = self._get_item_or_seller_info(list(not_in_db_ids), self.config.items_api_url, ';')
+        item_json = self.get_item_or_seller_info(list(not_in_db_ids), self.config.items_api_url, ';')
         if item_json['state'] == 0:
-            new_items = self._add_items_to_db(item_json['data']['products'])
+            new_items = self.add_items_to_db(item_json['data']['products'])
             self._add_category_and_imgs(new_items, category_leaf, img_id_to_objs)
         else:
             logger.warning(f'Got bad response for items: {item_json}')
@@ -311,7 +316,7 @@ class WildberriesItemScraper(WildberriesBaseScraper):
         return mp_ids, imgs, link_to_ids
 
 
-class WildberriesItemCategoryScraper(WildberriesBaseScraper):
+class WildberriesIndividualItemCategoryScraper(WildberriesBaseScraper):
     def update_from_mp(self) -> int:
         start = time.time()
         connection.close()
