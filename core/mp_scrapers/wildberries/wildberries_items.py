@@ -163,10 +163,12 @@ class WildberriesIncrementItemScraper(WildberriesItemBase):
     def __init__(self):
         super().__init__()
         marketplace_id_max = Item.objects.aggregate(Max('marketplace_id'))['marketplace_id__max']
-        self.last_parsed = 0 if marketplace_id_max is None else marketplace_id_max
+        self.last_parsed = 1 if marketplace_id_max is None else marketplace_id_max
         self.lock = Manager().Lock()
 
     def update_from_mp(self) -> int:
+        start = time.time()
+        connection.close()
         start_from = self._get_and_update_last_parsed()
         logger.debug(f'Started execution {start_from}')
         if start_from < self.config.max_item_id:
@@ -175,7 +177,6 @@ class WildberriesIncrementItemScraper(WildberriesItemBase):
             max_item_id = self._get_max_item_id()
             logger.info(f'New upper bound found: {max_item_id}')
 
-        start = time.time()
         indexes_to_request = list(range(start_from, min(max_item_id + 1, start_from + self.config.bulk_item_step)))
         items_result = self.get_item_or_seller_info(indexes_to_request, self.config.items_api_url, ';', )
         sellers_result = self.get_item_or_seller_info(indexes_to_request,
