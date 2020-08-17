@@ -75,9 +75,10 @@ class WildberriesItemBase(WildberriesBaseScraper):
                 continue
 
         if new_items:
-            new_items = Item.objects.bulk_create(new_items)
-            for new_item, colour_pks in zip(new_items, colours):
-                new_item.colours.add(*colour_pks)
+            with transaction.atomic():
+                new_items = Item.objects.bulk_create(new_items)
+                for new_item, colour_pks in zip(new_items, colours):
+                    new_item.colours.add(*colour_pks)
 
         return old_items + new_items
 
