@@ -51,8 +51,9 @@ class ProxyManager:
 
         proxies = []
         for proxy_line in proxy_lines:
-            proxy_line = proxy_line.strip('\n')
-            proxies.append({'http': 'http' + proxy_line, 'https': 'https' + proxy_line})
+            proxy, port, username, password = proxy_line.strip('\n').split(':')
+            proxies.append({'http': f'http://{username}:{password}@{proxy}:{port}',
+                            'https': f'https://{username}:{password}@{proxy}:{port}'})
         return random.choice(proxies)
 
     def get_proxy(self, proxy_source: str = 'webshare') -> Dict[str, str]:
