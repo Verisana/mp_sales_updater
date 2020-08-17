@@ -75,14 +75,9 @@ class WildberriesItemBase(WildberriesBaseScraper):
                 continue
 
         if new_items:
-            start = time.time()
             new_items = Item.objects.bulk_create(new_items)
-            logger.debug(f'Bulk create time in add_items_to_db is {time.time() - start} sec.')
-
-            start = time.time()
             for new_item, colour_pks in zip(new_items, colours):
                 new_item.colours.add(*colour_pks)
-            logger.debug(f'Colour assign time in add_items_to_db is {time.time() - start} sec.')
 
         return old_items + new_items
 
@@ -152,9 +147,7 @@ class WildberriesItemBase(WildberriesBaseScraper):
                              field_to_ident: Union[str, List[str]]) -> None:
         new_models = [items_info[idxs[0]][model_name] for idxs in id_to_idx.values()]
 
-        start = time.time()
         new_models = model.objects.bulk_create(new_models)
-        logger.debug(f'Bulk create time in _fill_nones_in_items is {time.time()-start} sec.')
         for model in new_models:
             if isinstance(field_to_ident, str):
                 idxs = id_to_idx[model.__getattribute__(field_to_ident)]
