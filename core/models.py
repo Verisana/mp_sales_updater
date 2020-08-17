@@ -70,7 +70,10 @@ class Item(StandardFields):
     no_individual_category = models.BooleanField(default=False, db_index=True)
 
     def __str__(self):
-        return f'{self.name} ({self.marketplace_id}) ({self.colours.name}) {self.brand.name}'
+        try:
+            return f'{self.name} ({self.marketplace_id}) {self.brand.name}'
+        except AttributeError as e:
+            return f'{self.name} ({self.marketplace_id})'
 
     def get_latest_revision(self):
         return self.item_revisions.last()
