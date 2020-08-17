@@ -28,8 +28,8 @@ class WildberriesImageScraper(WildberriesBaseScraper):
     def _get_image_to_download(self) -> Image:
         with transaction.atomic():
             image = Image.objects.select_for_update(skip_locked=True).filter(
-                mp_source=self.mp_source, next_parse_time__lte=now(), start_parse_time__isnull=True).order_by(
-                'next_parse_time').first()
+                marketplace_source=self.marketplace_source,
+                next_parse_time__lte=now(), start_parse_time__isnull=True).order_by('next_parse_time').first()
             if image is not None:
                 self._update_start_parse_time(image)
                 return image
@@ -40,11 +40,11 @@ class WildberriesImageScraper(WildberriesBaseScraper):
         image.save()
 
     def _download_image_and_update_fields(self, image: Image) -> None:
-        img_bytes, _, status_code = self.connector.get_page(RequestBody(image.mp_link, 'get', parsing_type='image'))
+        img_bytes, _, status_code = self.connector.get_page(RequestBody(image.marketplace_link, 'get', parsing_type='image'))
         if status_code == 200:
-            image.image_file.save(image.mp_link.split('/')[-1], ContentFile(img_bytes), save=False)
+            image.image_file.save(image.marketplace_link.split('/')[-1], ContentFile(img_bytes), save=False)
         else:
-            logger.error(f'Can not find image on link {image.mp_link}')
+            logger.error(f'Can not find image on link {image.marketplace_link}')
         image.next_parse_time = now() + image.parse_frequency
         image.start_parse_time = None
         image.save()

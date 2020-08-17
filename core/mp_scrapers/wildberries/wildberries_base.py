@@ -22,7 +22,7 @@ def get_mp_wb() -> Marketplace:
 class WildberriesBaseScraper(ABC):
     config = WILDBERRIES_CONFIG
     connector = Connector(use_proxy=config.use_proxy)
-    mp_source = get_mp_wb()
+    marketplace_source = get_mp_wb()
 
     @abstractmethod
     def update_from_mp(self) -> int:

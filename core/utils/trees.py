@@ -1,12 +1,12 @@
 class Node:
-    def __init__(self, name, mp_url=None, parent=None, db_id=None):
+    def __init__(self, name, marketplace_url=None, parent=None, db_id=None):
         self.name = name.lower().strip(' ').strip('\n')
 
-        url_end = mp_url.find('?')
+        url_end = marketplace_url.find('?')
         if url_end != -1:
-            self.mp_url = mp_url[:url_end]
+            self.marketplace_url = marketplace_url[:url_end]
         else:
-            self.mp_url = mp_url
+            self.marketplace_url = marketplace_url
 
         self.descendants = []
         self.db_id = db_id
