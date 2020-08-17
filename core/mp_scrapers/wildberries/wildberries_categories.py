@@ -166,7 +166,10 @@ class WildberriesCategoryScraper(WildberriesBaseScraper):
             category, is_created = ItemCategory.objects.get_or_create(name=parsed_node.name,
                                                                       marketplace_source=self.marketplace_source,
                                                                       parent=parent)
-            category.marketplace_category_url = parsed_node.marketplace_url
+            try:
+                category.marketplace_category_url = parsed_node.marketplace_url
+            except AttributeError:
+                category.marketplace_category_url = parsed_node.mp_url
             category.save()
             parsed_node.db_id = category.id
             self._save_all_results_in_db(parsed_node.descendants, parent=category)
