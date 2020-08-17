@@ -170,7 +170,6 @@ class WildberriesIncrementItemScraper(WildberriesItemBase):
         start = time.time()
         connection.close()
         start_from = self._get_and_update_last_parsed()
-        logger.debug(f'Started execution {start_from}')
         if start_from < self.config.max_item_id:
             max_item_id = self.config.max_item_id
         else:
