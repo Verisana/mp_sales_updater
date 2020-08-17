@@ -41,7 +41,7 @@ class MarketplaceScheme(StandardFields):
 
 class Item(StandardFields):
     name = models.CharField(max_length=256)
-    marketplace_id = models.IntegerField()
+    marketplace_id = models.IntegerField(db_index=True)
     root_id = models.IntegerField(blank=True, null=True)
     marketplace_source = models.ForeignKey('Marketplace', on_delete=models.PROTECT, related_name='items')
     categories = models.ManyToManyField('ItemCategory', blank=True, related_name='items')
