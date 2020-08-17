@@ -41,19 +41,20 @@ class WildberriesItemBase(WildberriesBaseScraper):
     def add_items_to_db(self, items: List[Dict]) -> List[Item]:
         brand_id_to_idx, colour_id_to_idx, seller_id_to_idx, items_info = self._aggregate_info_from_items(items)
 
-        self._fill_nones_in_items(brand_id_to_idx, items_info, Brand, 'brand', 'mp_id')
-        self._fill_nones_in_items(colour_id_to_idx, items_info, Colour, 'colour', 'mp_id')
+        self._fill_nones_in_items(brand_id_to_idx, items_info, Brand, 'brand', 'marketplace_id')
+        self._fill_nones_in_items(colour_id_to_idx, items_info, Colour, 'colour', 'marketplace_id')
         self._fill_nones_in_items(seller_id_to_idx, items_info, Seller, 'seller', 'name')
 
         current_time = now()
         new_items, old_items, colours = [], [], []
         for item in items_info:
-            create_params = {'name': item['name'], 'mp_id': item['mp_id'], 'mp_source': self.mp_source,
-                             'root_id': item['root_id'], 'brand': item['brand'], 'size_name': item['size_name'],
+            create_params = {'name': item['name'], 'marketplace_id': item['marketplace_id'],
+                             'marketplace_source': self.marketplace_source, 'root_id': item['root_id'],
+                             'brand': item['brand'], 'size_name': item['size_name'],
                              'size_orig_name': item['size_orig_name'], 'seller': item['seller'],
                              'revisions_next_parse_time': current_time, 'is_digital': item['is_digital'],
                              'is_adult': item['is_adult']}
-            get_params = {'mp_id': item['mp_id'], 'mp_source': self.mp_source}
+            get_params = {'marketplace_id': item['marketplace_id'], 'marketplace_source': self.marketplace_source}
 
             try:
                 existing_item = Item.objects.get(**get_params)
@@ -61,10 +62,10 @@ class WildberriesItemBase(WildberriesBaseScraper):
             except Item.DoesNotExist:
                 new_item = Item(**create_params)
                 try:
-                    last_mp_id = new_items[-1].mp_id
+                    last_marketplace_id = new_items[-1].marketplace_id
                 except IndexError:
-                    last_mp_id = None
-                if last_mp_id != new_item.mp_id:
+                    last_marketplace_id = None
+                if last_marketplace_id != new_item.marketplace_id:
                     new_items.append(new_item)
                     colours.append([item['colour'].pk])
                 else:
@@ -97,7 +98,7 @@ class WildberriesItemBase(WildberriesBaseScraper):
                       colour_id_to_idx: Dict[Union[str, int], List[int]],
                       seller_id_to_idx: Dict[Union[str, int], List[int]], items_info: List[Dict], item: Dict,
                       colour: Dict) -> None:
-        new_item_info = {'name': item['name'], 'mp_id': item['id'], 'root_id': item['root'], 'brand': None,
+        new_item_info = {'name': item['name'], 'marketplace_id': item['id'], 'root_id': item['root'], 'brand': None,
                          'colour': None, 'size_name': '', 'size_orig_name': '', 'seller': None,
                          'is_digital': item['isDigital'], 'is_adult': item['isAdult']}
         if item['sizes']:
@@ -106,16 +107,19 @@ class WildberriesItemBase(WildberriesBaseScraper):
         items_info.append(new_item_info)
 
         brand_name = item.get('brand') if item.get('brand') is not None else ''
-        brand_params = {'name': brand_name, 'mp_source': self.mp_source, 'mp_id': item.get('brandId')}
-        self._prepare_model(items_info, brand_id_to_idx, Brand, brand_params, 'brand', 'mp_id')
+        brand_params = {'name': brand_name, 'marketplace_source': self.marketplace_source,
+                        'marketplace_id': item.get('brandId')}
+        self._prepare_model(items_info, brand_id_to_idx, Brand, brand_params, 'brand', 'marketplace_id')
 
         seller_name = item.get('sellerName') if item.get('sellerName') is not None else ''
-        seller_params = {'name': seller_name, 'mp_source_id': self.mp_source.id}
-        self._prepare_model(items_info, seller_id_to_idx, Seller, seller_params, 'seller', ['name', 'mp_source_id'])
+        seller_params = {'name': seller_name, 'marketplace_source_id': self.marketplace_source.id}
+        self._prepare_model(items_info, seller_id_to_idx, Seller, seller_params, 'seller',
+                            ['name', 'marketplace_source_id'])
 
         colour_name = colour.get('name') if colour.get('name') is not None else ''
-        colour_params = {'name': colour_name, 'mp_source': self.mp_source, 'mp_id': colour.get('id')}
-        self._prepare_model(items_info, colour_id_to_idx, Colour, colour_params, 'colour', 'mp_id')
+        colour_params = {'name': colour_name, 'marketplace_source': self.marketplace_source,
+                         'marketplace_id': colour.get('id')}
+        self._prepare_model(items_info, colour_id_to_idx, Colour, colour_params, 'colour', 'marketplace_id')
 
     @staticmethod
     def _prepare_model(to_fill: List[Dict], fill_id_to_idx: Dict[Union[str, int], List[int]],
@@ -155,8 +159,8 @@ class WildberriesItemBase(WildberriesBaseScraper):
 class WildberriesIncrementItemScraper(WildberriesItemBase):
     def __init__(self):
         super().__init__()
-        mp_id_max = Item.objects.aggregate(Max('mp_id'))['mp_id__max']
-        self.last_parsed = 0 if mp_id_max is None else mp_id_max
+        marketplace_id_max = Item.objects.aggregate(Max('marketplace_id'))['marketplace_id__max']
+        self.last_parsed = 0 if marketplace_id_max is None else marketplace_id_max
 
     def update_from_mp(self) -> int:
         start_from = self.last_parsed
@@ -192,7 +196,7 @@ class WildberriesIncrementItemScraper(WildberriesItemBase):
 
     def _get_max_item_id(self) -> int:
         try:
-            latest = Item.objects.latest('mp_id').mp_id
+            latest = Item.objects.latest('marketplace_id').marketplace_id
         except Item.DoesNotExist:
             latest = 1
 
@@ -243,7 +247,7 @@ class WildberriesItemInCategoryScraper(WildberriesItemBase):
         counter = 1
         while True:
             page_num = f'?page={counter}'
-            bs, _, status_code = self.connector.get_page(RequestBody(category_leaf.mp_category_url + page_num,
+            bs, _, status_code = self.connector.get_page(RequestBody(category_leaf.marketplace_category_url + page_num,
                                                                      'get'))
             if status_code == 404:
                 break
@@ -256,21 +260,21 @@ class WildberriesItemInCategoryScraper(WildberriesItemBase):
         all_items = bs.find('div', class_='catalog_main_table').findAll('div', class_='dtList')
         item_ids, img_id_to_objs, img_link_to_ids = self._extract_ids_imgs_from_page(all_items)
 
-        imgs_filtered = Image.objects.filter(mp_link__in=img_link_to_ids.keys())
+        imgs_filtered = Image.objects.filter(marketplace_link__in=img_link_to_ids.keys())
         filtered_imgs_ids = []
         for img_filtered in imgs_filtered:
-            item_id = img_link_to_ids[img_filtered.mp_link]
+            item_id = img_link_to_ids[img_filtered.marketplace_link]
             img_id_to_objs[item_id] = img_filtered
             filtered_imgs_ids.append(item_id)
 
         new_imgs = Image.objects.bulk_create(
-            [img for mp_id, img in img_id_to_objs.items() if mp_id not in filtered_imgs_ids])
+            [img for marketplace_id, img in img_id_to_objs.items() if marketplace_id not in filtered_imgs_ids])
 
         for new_img in new_imgs:
-            item_id = img_link_to_ids[new_img.mp_link]
+            item_id = img_link_to_ids[new_img.marketplace_link]
             img_id_to_objs[item_id] = new_img
 
-        available_items = Item.objects.filter(mp_id__in=item_ids)
+        available_items = Item.objects.filter(marketplace_id__in=item_ids)
         updated_ids = self._add_category_and_imgs(available_items, category_leaf,
                                                   img_id_to_objs) if available_items else set()
         not_in_db_ids = set(item_ids) - updated_ids
@@ -288,17 +292,17 @@ class WildberriesItemInCategoryScraper(WildberriesItemBase):
         updated_ids = set()
         for item in items:
             item.categories.add(category_leaf)
-            item.images.add(item_imgs[item.mp_id])
+            item.images.add(item_imgs[item.marketplace_id])
             if not item.is_categories_filled:
                 item.is_categories_filled = True
                 item.save()
-            updated_ids.add(item.mp_id)
+            updated_ids.add(item.marketplace_id)
         return updated_ids
 
     def _extract_ids_imgs_from_page(self, all_items: List[Tag]) -> Tuple[List[int], Dict[int, Image], Dict[str, int]]:
-        mp_ids, imgs, link_to_ids = [], {}, {}
+        marketplace_ids, imgs, link_to_ids = [], {}, {}
         for item in all_items:
-            mp_ids.append(int(item['data-popup-nm-id']))
+            marketplace_ids.append(int(item['data-popup-nm-id']))
 
             img_link = 'https:'
             for tag in item.findAll('img'):
@@ -309,11 +313,12 @@ class WildberriesItemInCategoryScraper(WildberriesItemBase):
                 if 'blank' not in link:
                     img_link += link
                     break
-            img_obj = Image(mp_link=img_link, mp_source=self.mp_source, next_parse_time=now())
+            img_obj = Image(marketplace_link=img_link, marketplace_source=self.marketplace_source,
+                            next_parse_time=now())
             if img_link != 'https:':
                 imgs[int(item['data-popup-nm-id'])] = img_obj
                 link_to_ids[img_link] = int(item['data-popup-nm-id'])
-        return mp_ids, imgs, link_to_ids
+        return marketplace_ids, imgs, link_to_ids
 
 
 class WildberriesIndividualItemCategoryScraper(WildberriesBaseScraper):
@@ -333,7 +338,7 @@ class WildberriesIndividualItemCategoryScraper(WildberriesBaseScraper):
     def _get_item_to_update(self) -> Item:
         with transaction.atomic():
             item = Item.objects.select_for_update(skip_locked=True).filter(
-                mp_source=self.mp_source, items_start_parse_time__isnull=True, is_deleted=False,
+                marketplace_source=self.marketplace_source, items_start_parse_time__isnull=True, is_deleted=False,
                 no_individual_category=False, is_categories_filled=False).first()
             if item:
                 self._update_start_parse_time(item)
@@ -346,7 +351,7 @@ class WildberriesIndividualItemCategoryScraper(WildberriesBaseScraper):
 
     def _individual_item_update(self, item: Item):
         item_bs, is_captcha, status_code = self.connector.get_page(RequestBody(
-            self.config.individual_item_url.format(item.mp_id), 'get'))
+            self.config.individual_item_url.format(item.marketplace_id), 'get'))
         item.items_start_parse_time = None
         if status_code == 200:
             category = self._parse_category(item_bs)
@@ -354,11 +359,12 @@ class WildberriesIndividualItemCategoryScraper(WildberriesBaseScraper):
                 logger.debug(f'{category.name} set to {item.name}')
                 item.categories.add(category)
             else:
-                logger.info(f"Can't find category for item name = {item.name} and mp_id = {item.mp_id}")
+                logger.info(f"Can't find category for item name = {item.name} "
+                            f"and marketplace_id = {item.marketplace_id}")
                 item.no_individual_category = True
         else:
             item.is_deleted = True
-            logger.info(f'item {item.mp_id} is not used anymore')
+            logger.info(f'item {item.marketplace_id} is not used anymore')
         item.save()
 
     def _parse_category(self, item_bs: BeautifulSoup) -> ItemCategory:

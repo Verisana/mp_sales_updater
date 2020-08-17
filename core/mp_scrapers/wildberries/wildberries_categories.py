@@ -61,8 +61,9 @@ class WildberriesCategoryScraper(WildberriesBaseScraper):
             name, url = tag.text, tag.find('a')['href']
             new_node = Node(name, url, parent=None)
 
-            category, _ = ItemCategory.objects.get_or_create(name=new_node.name, mp_category_url=new_node.mp_url,
-                                                             mp_source=self.mp_source, parent=None)
+            category, _ = ItemCategory.objects.get_or_create(
+                name=new_node.name, marketplace_category_url=new_node.marketplace_url,
+                marketplace_source=self.marketplace_source, parent=None)
             new_node.db_id = category.id
             root_nodes.append(new_node)
 
@@ -94,7 +95,7 @@ class WildberriesCategoryScraper(WildberriesBaseScraper):
                     logger.debug('\t'+message)
             # Прям до сюда
 
-            descendants_bs, is_captcha, _ = self.connector.get_page(RequestBody(node.mp_url, 'get'))
+            descendants_bs, is_captcha, _ = self.connector.get_page(RequestBody(node.marketplace_url, 'get'))
 
             if level == 0:
                 all_items = self._extract_catalogs_from_root(descendants_bs)
@@ -148,10 +149,10 @@ class WildberriesCategoryScraper(WildberriesBaseScraper):
         return new_node
 
     def _save_node_in_db(self, node: Node, parent_node: Node, level: int) -> int:
-        parent = ItemCategory.objects.get(name=parent_node.name, mp_category_url=parent_node.mp_url,
-                                          mp_source=self.mp_source, level=level)
-        category, _ = ItemCategory.objects.get_or_create(name=node.name, mp_category_url=node.mp_url,
-                                                         mp_source=self.mp_source, parent=parent)
+        parent = ItemCategory.objects.get(name=parent_node.name, marketplace_category_url=parent_node.marketplace_url,
+                                          marketplace_source=self.marketplace_source, level=level)
+        category, _ = ItemCategory.objects.get_or_create(name=node.name, marketplace_category_url=node.marketplace_url,
+                                                         marketplace_source=self.marketplace_source, parent=parent)
         return category.id
 
     def _check_db_consistency(self) -> None:
@@ -163,9 +164,9 @@ class WildberriesCategoryScraper(WildberriesBaseScraper):
                 logger.info(f'{i + 1}/{len(parsed_nodes)}. Saving {parsed_node.name}')
 
             category, is_created = ItemCategory.objects.get_or_create(name=parsed_node.name,
-                                                                      mp_source=self.mp_source,
+                                                                      marketplace_source=self.marketplace_source,
                                                                       parent=parent)
-            category.mp_category_url = parsed_node.mp_url
+            category.marketplace_category_url = parsed_node.marketplace_url
             category.save()
             parsed_node.db_id = category.id
             self._save_all_results_in_db(parsed_node.descendants, parent=category)
