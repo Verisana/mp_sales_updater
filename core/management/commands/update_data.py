@@ -36,7 +36,9 @@ class Command(BaseCommand):
                         scraper.update_from_mp()
                 elif action_type == 'items_increment':
                     scraper = WildberriesIncrementItemScraper()
-                    scraper.update_from_mp()
+                    # scraper.update_from_mp()
+                    wb_process_pool = WildberriesProcessPool(scraper, cpu_multiplier=1)
+                    wb_process_pool.start_process_pool()
                 elif action_type == 'items_in_category':
                     scraper = WildberriesItemInCategoryScraper()
                     scraper.update_from_mp()

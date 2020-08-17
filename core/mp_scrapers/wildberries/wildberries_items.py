@@ -1,5 +1,6 @@
 import time
 from collections import defaultdict
+from multiprocessing import Manager
 from typing import List, Dict, Tuple, Set, Union, Any, Callable
 
 from bs4 import BeautifulSoup
@@ -163,9 +164,11 @@ class WildberriesIncrementItemScraper(WildberriesItemBase):
         super().__init__()
         marketplace_id_max = Item.objects.aggregate(Max('marketplace_id'))['marketplace_id__max']
         self.last_parsed = 0 if marketplace_id_max is None else marketplace_id_max
+        self.lock = Manager().Lock()
 
     def update_from_mp(self) -> int:
-        start_from = self.last_parsed
+        start_from = self._get_and_update_last_parsed()
+        logger.debug(f'Started execution {start_from}')
         if start_from < self.config.max_item_id:
             max_item_id = self.config.max_item_id
         else:
@@ -173,28 +176,33 @@ class WildberriesIncrementItemScraper(WildberriesItemBase):
             logger.info(f'New upper bound found: {max_item_id}')
 
         start = time.time()
-        for i in range(start_from, max_item_id + 1, self.config.bulk_item_step):
-            indexes_to_request = list(range(i, min(max_item_id + 1, i + self.config.bulk_item_step)))
-            items_result = self.get_item_or_seller_info(indexes_to_request, self.config.items_api_url, ';', )
-            sellers_result = self.get_item_or_seller_info(indexes_to_request,
-                                                          self.config.seller_url, ',', is_special_header=True)
+        indexes_to_request = list(range(start_from, min(max_item_id + 1, start_from + self.config.bulk_item_step)))
+        items_result = self.get_item_or_seller_info(indexes_to_request, self.config.items_api_url, ';', )
+        sellers_result = self.get_item_or_seller_info(indexes_to_request,
+                                                      self.config.seller_url, ',', is_special_header=True)
 
-            if items_result['state'] == 0 and sellers_result['resultState'] == 0 and items_result['data']['products']:
-                seller_id_to_name = {i['cod1S']: i['supplierName'] for i in sellers_result['value']}
-                for item in items_result['data']['products']:
-                    item['sellerName'] = seller_id_to_name.get(item['id'])
-                self.add_items_to_db(items_result['data']['products'])
-            elif items_result['state'] == 0 and items_result['data']['products']:
-                logger.warning(f'Error result in {i}: {sellers_result}')
-                self.add_items_to_db(items_result['data']['products'])
-            elif not items_result['data']['products']:
-                logger.info(f'Items response is empty: {items_result}')
-            else:
-                logger.warning(f'Error result in {i}: {items_result}')
+        if items_result['state'] == 0 and sellers_result['resultState'] == 0 and items_result['data']['products']:
+            seller_id_to_name = {i['cod1S']: i['supplierName'] for i in sellers_result['value']}
+            for item in items_result['data']['products']:
+                item['sellerName'] = seller_id_to_name.get(item['id'])
+            self.add_items_to_db(items_result['data']['products'])
+        elif items_result['state'] == 0 and items_result['data']['products']:
+            logger.warning(f'Error result in {i}: {sellers_result}')
+            self.add_items_to_db(items_result['data']['products'])
+        elif not items_result['data']['products']:
+            logger.info(f'Items response is empty: {items_result}')
+        else:
+            logger.warning(f'Error result in {start_from}: {items_result}')
 
-            logger.info(f'{i} elapsed {(time.time() - start):0.0f} seconds')
-            start = time.time()
+        logger.info(f'{start_from} elapsed {(time.time() - start):0.0f} seconds')
         return 0
+
+    def _get_and_update_last_parsed(self) -> int:
+        self.lock.acquire()
+        start_from = self.last_parsed
+        self.last_parsed += self.config.bulk_item_step
+        self.lock.release()
+        return start_from
 
     def _get_max_item_id(self) -> int:
         try:
