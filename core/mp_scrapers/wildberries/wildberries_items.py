@@ -1,3 +1,4 @@
+import multiprocessing
 import time
 from collections import defaultdict
 from multiprocessing import Manager
@@ -11,7 +12,7 @@ from django.db.models.base import ModelBase
 from django.utils.timezone import now
 
 from core.models import ItemCategory, Item, Brand, Colour, Image, Seller
-from core.mp_scrapers.wildberries.wildberries_base import WildberriesBaseScraper
+from core.mp_scrapers.wildberries.wildberries_base import WildberriesBaseScraper, WildberriesProcessPool
 from core.types import RequestBody
 from core.utils.logging_helpers import get_logger
 
@@ -163,14 +164,10 @@ class WildberriesItemBase(WildberriesBaseScraper):
 class WildberriesIncrementItemScraper(WildberriesItemBase):
     def __init__(self):
         super().__init__()
-        marketplace_id_max = Item.objects.aggregate(Max('marketplace_id'))['marketplace_id__max']
-        self.last_parsed = 1 if marketplace_id_max is None else marketplace_id_max
-        self.lock = Manager().Lock()
 
-    def update_from_mp(self) -> int:
+    def update_from_mp(self, start_from: int) -> int:
         start = time.time()
         connection.close()
-        start_from = self._get_and_update_last_parsed()
         if start_from < self.config.max_item_id:
             max_item_id = self.config.max_item_id
         else:
@@ -197,13 +194,6 @@ class WildberriesIncrementItemScraper(WildberriesItemBase):
 
         logger.info(f'{start_from} elapsed {(time.time() - start):0.0f} seconds')
         return 0
-
-    def _get_and_update_last_parsed(self) -> int:
-        self.lock.acquire()
-        start_from = self.last_parsed
-        self.last_parsed += self.config.bulk_item_step
-        self.lock.release()
-        return start_from
 
     def _get_max_item_id(self) -> int:
         try:
@@ -241,6 +231,32 @@ class WildberriesIncrementItemScraper(WildberriesItemBase):
                 return self._get_max_in_bounds(middle + 1, max_id)
             else:
                 return self._get_max_in_bounds(min_id, middle - 1)
+
+
+class IncrementItemUpdaterProcessPool(WildberriesProcessPool):
+    def __init__(self, scraper: WildberriesBaseScraper, cpu_multiplier: int = 1):
+        super().__init__(scraper, cpu_multiplier)
+
+    def start_process_pool(self):
+        marketplace_id_max = Item.objects.aggregate(Max('marketplace_id'))['marketplace_id__max']
+        last_parsed = 1 if marketplace_id_max is None else marketplace_id_max
+
+        with multiprocessing.Pool(processes=self.processes) as pool:
+            while True:
+                if self.busy_processes < self.processes:
+                    start_from = last_parsed
+                    last_parsed += self.scraper.config.bulk_item_step
+                    res = pool.apply_async(self.scraper.update_from_mp, args=(start_from,),
+                                           callback=self._busy_processes_reducer)
+                    self.busy_processes += 1
+                    res_code = res.get()
+                    if res_code == -1:
+                        logger.info(f'Multiprocessing pool stopping. Got result code -1')
+                        break
+                else:
+                    # For the sake of not wasting CPU powers too much
+                    print(f'Sleeping: {self.busy_processes}')
+                    time.sleep(0.3)
 
 
 class WildberriesItemInCategoryScraper(WildberriesItemBase):
