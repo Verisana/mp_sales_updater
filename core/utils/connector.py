@@ -33,30 +33,30 @@ class Connector:
 
     def get_page(self, request_info: RequestBody) -> Union[Tuple[BeautifulSoup, bool, int], Tuple[Dict, bool, int],
                                                            Tuple[None, None, None], Tuple[bytes, None, int]]:
-        for i in range(self.try_count):
-            try:
-                response = self._send_request(request_info)
-            except requests.exceptions.RequestException as e:
-                logger.warning(f'Requests error: {e}')
-                continue
-
-            is_captcha = False
-            if request_info.parsing_type == 'bs':
-                bs, is_captcha = self._parse_to_bs(response, request_info)
-                return bs, is_captcha, response.status_code
-            elif request_info.parsing_type == 'json':
+        while True:
+            for i in range(self.try_count):
                 try:
-                    json_result = self._parse_to_json(response)
-                    return json_result, is_captcha, response.status_code
-                except json.JSONDecodeError as e:
-                    logger.warning(
-                        f'JSONDecoderError: {e.msg}')
-            elif request_info.parsing_type == 'image':
-                return response.content, None, response.status_code
-            else:
-                logger.warning('Unrecognized type of parsing')
-        logger.error("All attempts to connect have been used")
-        return None, None, None
+                    response = self._send_request(request_info)
+                except requests.exceptions.RequestException as e:
+                    logger.warning(f'Requests error: {e}')
+                    continue
+
+                is_captcha = False
+                if request_info.parsing_type == 'bs':
+                    bs, is_captcha = self._parse_to_bs(response, request_info)
+                    return bs, is_captcha, response.status_code
+                elif request_info.parsing_type == 'json':
+                    try:
+                        json_result = self._parse_to_json(response)
+                        return json_result, is_captcha, response.status_code
+                    except json.JSONDecodeError as e:
+                        logger.warning(
+                            f'JSONDecoderError: {e.msg}')
+                elif request_info.parsing_type == 'image':
+                    return response.content, None, response.status_code
+                else:
+                    logger.warning('Unrecognized type of parsing')
+            logger.error(f"All attempts to connect have been used. Trying another {self.try_count} attempts")
 
     def _parse_to_bs(self, response: Response, request_info: RequestBody) -> (BeautifulSoup, bool):
         bs = BeautifulSoup(response.content, 'lxml')
