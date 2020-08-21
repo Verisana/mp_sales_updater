@@ -250,12 +250,12 @@ class IncrementItemUpdaterProcessPool(WildberriesProcessPool):
                                            callback=self._busy_processes_reducer)
                     self.busy_processes += 1
                     res_code = res.get()
+
                     if res_code == -1:
                         logger.info(f'Multiprocessing pool stopping. Got result code -1')
                         break
                 else:
                     # For the sake of not wasting CPU powers too much
-                    print(f'Sleeping: {self.busy_processes}')
                     time.sleep(0.3)
 
 
