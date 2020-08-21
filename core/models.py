@@ -13,8 +13,8 @@ class StandardFields(models.Model):
 
 
 class CommonNameSourceId(StandardFields):
-    name = models.CharField(max_length=128, blank=True)
-    marketplace_id = models.IntegerField(blank=True, null=True)
+    name = models.CharField(max_length=128, blank=True, db_index=True)
+    marketplace_id = models.IntegerField(blank=True, null=True, db_index=True)
     marketplace_source = models.ForeignKey('Marketplace', on_delete=models.PROTECT)
 
     class Meta:
@@ -55,22 +55,25 @@ class Item(StandardFields):
     is_adult = models.BooleanField(default=False)
 
     items_parse_frequency = models.DurationField(default=timedelta(days=7))
-    items_next_parse_time = models.DateTimeField(null=True, blank=True)
-    items_start_parse_time = models.DateTimeField(null=True, blank=True)
+    items_next_parse_time = models.DateTimeField(null=True, blank=True, db_index=True)
+    items_start_parse_time = models.DateTimeField(null=True, blank=True, db_index=True)
 
     revisions_parse_frequency = models.DurationField(default=timedelta(hours=24))
-    revisions_next_parse_time = models.DateTimeField(null=True, blank=True)
-    revisions_start_parse_time = models.DateTimeField(null=True, blank=True)
+    revisions_next_parse_time = models.DateTimeField(null=True, blank=True, db_index=True)
+    revisions_start_parse_time = models.DateTimeField(null=True, blank=True, db_index=True)
 
-    is_deleted = models.BooleanField(default=False)
+    is_deleted = models.BooleanField(default=False, db_index=True)
 
     # This flag is needed because we can't select FOR UPDATE from ManyToMany field with left outer join
-    is_categories_filled = models.BooleanField(default=False)
+    is_categories_filled = models.BooleanField(default=False, db_index=True)
 
-    no_individual_category = models.BooleanField(default=False)
+    no_individual_category = models.BooleanField(default=False, db_index=True)
 
     def __str__(self):
-        return f'{self.name} ({self.marketplace_id}) ({self.colours.name}) {self.brand.name}'
+        try:
+            return f'{self.name} ({self.marketplace_id}) {self.brand.name}'
+        except AttributeError as e:
+            return f'{self.name} ({self.marketplace_id})'
 
     def get_latest_revision(self):
         return self.item_revisions.last()
@@ -119,12 +122,12 @@ class ItemCategory(MPTTModel, StandardFields):
 
 class Image(StandardFields):
     image_file = models.ImageField(upload_to='image_model_storage/', blank=True)
-    marketplace_link = models.CharField(max_length=256, unique=True)
+    marketplace_link = models.CharField(max_length=256, unique=True, db_index=True)
     marketplace_source = models.ForeignKey('Marketplace', on_delete=models.PROTECT)
 
     parse_frequency = models.DurationField(default=timedelta(days=7))
-    next_parse_time = models.DateTimeField(null=True, blank=True)
-    start_parse_time = models.DateTimeField(null=True, blank=True)
+    next_parse_time = models.DateTimeField(null=True, blank=True, db_index=True)
+    start_parse_time = models.DateTimeField(null=True, blank=True, db_index=True)
 
     def __str__(self):
         return self.marketplace_link
