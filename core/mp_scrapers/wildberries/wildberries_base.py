@@ -38,20 +38,23 @@ class WildberriesProcessPool:
         # We can't have processes = 0
         self.processes = max(1, int(self.cpu_count * self.cpu_multiplier))
         self.busy_processes = 0
+        self.stop_processes = False
 
     def start_process_pool(self):
         with multiprocessing.Pool(processes=self.processes) as pool:
             while True:
                 if self.busy_processes < self.processes:
-                    res = pool.apply_async(self.scraper.update_from_mp, callback=self._busy_processes_reducer)
+                    pool.apply_async(self.scraper.update_from_mp, callback=self._busy_processes_reducer)
                     self.busy_processes += 1
-                    res_code = res.get()
-                    if res_code == -1:
+
+                    if self.stop_processes:
                         logger.info(f'Multiprocessing pool stopping. Got result code -1')
                         break
                 else:
                     # For the sake of not wasting CPU powers too much
                     time.sleep(0.3)
 
-    def _busy_processes_reducer(self, result):
+    def _busy_processes_reducer(self, result: int):
         self.busy_processes -= 1
+        if result == -1:
+            self.stop_processes = True
