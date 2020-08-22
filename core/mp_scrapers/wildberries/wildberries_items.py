@@ -246,12 +246,11 @@ class IncrementItemUpdaterProcessPool(WildberriesProcessPool):
                 if self.busy_processes < self.processes:
                     start_from = last_parsed
                     last_parsed += self.scraper.config.bulk_item_step
-                    res = pool.apply_async(self.scraper.update_from_mp, args=(start_from,),
+                    pool.apply_async(self.scraper.update_from_mp, args=(start_from,),
                                            callback=self._busy_processes_reducer)
                     self.busy_processes += 1
-                    res_code = res.get()
 
-                    if res_code == -1:
+                    if self.stop_processes:
                         logger.info(f'Multiprocessing pool stopping. Got result code -1')
                         break
                 else:
