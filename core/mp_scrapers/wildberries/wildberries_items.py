@@ -196,7 +196,7 @@ class WildberriesIncrementItemScraper(WildberriesItemBase):
 
         start = time.time()
         for i in range(start_from, max_item_id + 1, self.config.bulk_item_step):
-            indexes_to_request = list(range(14498613, min(max_item_id + 1, 14498613 + self.config.bulk_item_step)))
+            indexes_to_request = list(range(i, min(max_item_id + 1, i + self.config.bulk_item_step)))
             items_result = self.get_item_or_seller_info(indexes_to_request, self.config.items_api_url, ';', )
             sellers_result = self.get_item_or_seller_info(indexes_to_request,
                                                           self.config.seller_url, ',', is_special_header=True)
