@@ -72,7 +72,7 @@ class Item(StandardFields):
     def __str__(self):
         try:
             return f'{self.name} ({self.marketplace_id}) {self.brand.name}'
-        except AttributeError as e:
+        except AttributeError:
             return f'{self.name} ({self.marketplace_id})'
 
     def get_latest_revision(self):
