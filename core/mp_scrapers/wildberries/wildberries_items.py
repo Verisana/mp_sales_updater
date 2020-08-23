@@ -33,12 +33,20 @@ class WildberriesItemBase(WildberriesBaseScraper):
         raise NotImplementedError
 
     def get_item_or_seller_info(self, indices: List[int], url: str, sep: str, is_special_header: bool = False) -> Dict:
-        indices = sep.join(map(str, indices))
-        url = url.format(indices)
+        counter = 0
+        indices_joined = sep.join(map(str, indices))
+        url = url.format(indices_joined)
         headers = self.xmlhttp_header if is_special_header else None
-        json_result, _, _ = self.connector.get_page(RequestBody(url,
-                                                                method='get', parsing_type='json', headers=headers))
-        return json_result
+        while True:
+            counter += 1
+            json_result, _, _ = self.connector.get_page(RequestBody(url,
+                                                        method='get', parsing_type='json', headers=headers))
+            if self._is_valid_result(json_result):
+                return json_result
+            elif counter > 5:
+                logger.warning(f"Couldn't't get SuppliersName for all requested items "
+                               f"from {indices[0]} to {indices[-1]}")
+                return json_result
 
     def add_items_to_db(self, items: List[Dict]) -> List[Item]:
         brand_id_to_idx, colour_id_to_idx, seller_id_to_idx, items_info = self._aggregate_info_from_items(items)
@@ -83,6 +91,20 @@ class WildberriesItemBase(WildberriesBaseScraper):
                     new_item.colours.add(*colour_pks)
 
         return old_items + new_items
+
+    @staticmethod
+    def _is_valid_result(json_result: Dict) -> bool:
+        # We only want to check for seller updates
+        if 'state' in json_result.keys():
+            return True
+        else:
+            try:
+                if json_result['resultState'] == 0:
+                    _ = {i['cod1S']: i['supplierName'] for i in json_result['value']}
+                return True
+            except KeyError as e:
+                logger.warning(f'KeyError caught json_result: {e}')
+                return False
 
     def _aggregate_info_from_items(self, items: List[Dict]) -> Tuple[
         Dict[Union[str, int], List[int]], Dict[Union[str, int], List[int]], Dict[Union[str, int], List[int]], List[
