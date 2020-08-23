@@ -32,8 +32,8 @@ class WildberriesItemBase(WildberriesBaseScraper):
 
     def get_item_or_seller_info(self, indices: List[int], url: str, sep: str, is_special_header: bool = False) -> Dict:
         counter = 0
-        indices = sep.join(map(str, indices))
-        url = url.format(indices)
+        indices_joined = sep.join(map(str, indices))
+        url = url.format(indices_joined)
         headers = self.xmlhttp_header if is_special_header else None
         while True:
             counter += 1
@@ -42,7 +42,8 @@ class WildberriesItemBase(WildberriesBaseScraper):
             if self._is_valid_result(json_result):
                 return json_result
             elif counter > 5:
-                logger.warning(f"Couldn't't get SuppliersName for all requested items from {indices[0]} to {indices[-1]}")
+                logger.warning(f"Couldn't't get SuppliersName for all requested items "
+                               f"from {indices[0]} to {indices[-1]}")
                 return json_result
 
     def add_items_to_db(self, items: List[Dict]) -> List[Item]:
