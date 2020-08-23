@@ -13,7 +13,7 @@ logger = get_logger()
 
 
 class WildberriesRevisionScraper(WildberriesBaseScraper):
-    def update_from_mp(self) -> int:
+    def update_from_mp(self, start_from: int = None) -> int:
         start = time.time()
         connection.close()
 

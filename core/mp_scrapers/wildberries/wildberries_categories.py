@@ -27,7 +27,7 @@ class WildberriesCategoryScraper(WildberriesBaseScraper):
         }
         self.base_catalog_pattern = 'https://www.wildberries.ru/catalog/{}'
 
-    def update_from_mp(self) -> int:
+    def update_from_mp(self, start_from: int = None) -> int:
         logger.info(f'Started parsing categories from marketplace')
         bs, is_captcha, _ = self.connector.get_page(RequestBody(self.config.base_categories_url, 'get',
                                                                 headers=self.all_categories_headers))
