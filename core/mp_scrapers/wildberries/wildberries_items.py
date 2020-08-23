@@ -31,12 +31,20 @@ class WildberriesItemBase(WildberriesBaseScraper):
         raise NotImplementedError
 
     def get_item_or_seller_info(self, indices: List[int], url: str, sep: str, is_special_header: bool = False) -> Dict:
-        indices = sep.join(map(str, indices))
-        url = url.format(indices)
-        headers = self.xmlhttp_header if is_special_header else None
-        json_result, _, _ = self.connector.get_page(RequestBody(url,
-                                                                method='get', parsing_type='json', headers=headers))
-        return json_result
+        counter = 0
+        while True:
+            counter += 1
+            indices = sep.join(map(str, indices))
+            url = url.format(indices)
+            headers = self.xmlhttp_header if is_special_header else None
+            json_result, _, _ = self.connector.get_page(RequestBody(url,
+                                                                    method='get', parsing_type='json', headers=headers))
+            if self._is_valid_result(json_result):
+                return json_result
+            elif counter > 10:
+                logger.error('Maybe function get_item_or_seller_info in endless loop. Check it!')
+            else:
+                logger.warning("Couldn't get valid response. Try another one")
 
     def add_items_to_db(self, items: List[Dict]) -> List[Item]:
         brand_id_to_idx, colour_id_to_idx, seller_id_to_idx, items_info = self._aggregate_info_from_items(items)
@@ -81,6 +89,19 @@ class WildberriesItemBase(WildberriesBaseScraper):
                     new_item.colours.add(*colour_pks)
 
         return old_items + new_items
+
+    @staticmethod
+    def _is_valid_result(json_result: Dict) -> bool:
+        # We only want to check for seller updates
+        if 'state' in json_result.keys():
+            return True
+        else:
+            try:
+                if json_result['resultState'] == 0:
+                    _ = {i['cod1S']: i['supplierName'] for i in json_result['value']}
+                return True
+            except KeyError:
+                return False
 
     def _aggregate_info_from_items(self, items: List[Dict]) -> Tuple[
         Dict[Union[str, int], List[int]], Dict[Union[str, int], List[int]], Dict[Union[str, int], List[int]], List[
