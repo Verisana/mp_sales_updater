@@ -5,7 +5,7 @@ from django.core.management.base import BaseCommand, CommandError
 from core.mp_scrapers.wildberries.wildberries_categories import WildberriesCategoryScraper
 from core.mp_scrapers.wildberries.wildberries_images import WildberriesImageScraper
 from core.mp_scrapers.wildberries.wildberries_items import WildberriesIndividualItemCategoryScraper, \
-    WildberriesIncrementItemScraper, WildberriesItemInCategoryScraper
+    WildberriesIncrementItemScraper, WildberriesItemInCategoryScraper, IncrementItemUpdaterProcessPool
 from core.mp_scrapers.wildberries.wildberries_revisions import WildberriesRevisionScraper
 from core.mp_scrapers.wildberries.wildberries_base import WildberriesProcessPool, WildberriesBaseScraper
 from core.utils.logging_helpers import get_logger
@@ -31,17 +31,18 @@ class Command(BaseCommand):
                     scraper = WildberriesCategoryScraper()
                 elif action_type == 'items_increment':
                     scraper = WildberriesIncrementItemScraper()
+                    wb_process_pool = IncrementItemUpdaterProcessPool(scraper, cpu_multiplayer=cpu_multiplayer)
                 elif action_type == 'items_in_category':
                     scraper = WildberriesItemInCategoryScraper()
                 elif action_type == 'items_individual_category':
                     scraper = WildberriesIndividualItemCategoryScraper()
-                    wb_process_pool = WildberriesProcessPool(scraper, cpu_multiplier=cpu_multiplayer)
+                    wb_process_pool = WildberriesProcessPool(scraper, cpu_multiplayer=cpu_multiplayer)
                 elif action_type == 'revisions':
                     scraper = WildberriesRevisionScraper()
-                    wb_process_pool = WildberriesProcessPool(scraper, cpu_multiplier=cpu_multiplayer)
+                    wb_process_pool = WildberriesProcessPool(scraper, cpu_multiplayer=cpu_multiplayer)
                 elif action_type == 'images':
                     scraper = WildberriesImageScraper()
-                    wb_process_pool = WildberriesProcessPool(scraper, cpu_multiplier=cpu_multiplayer)
+                    wb_process_pool = WildberriesProcessPool(scraper, cpu_multiplayer=cpu_multiplayer)
                 else:
                     raise CommandError(f"Unrecognized type {action_type} for marketplace {mp}")
                 self._start_worker(scraper, process_pool=wb_process_pool, source_file=source_file)
@@ -52,7 +53,7 @@ class Command(BaseCommand):
             raise e
 
     @staticmethod
-    def _get_arguments(options: Dict) -> Tuple[str, str, Union[str, None], Union[str, None]]:
+    def _get_arguments(options: Dict) -> Tuple[str, str, Union[str, None], Union[int, None]]:
         mp = options['mp'].lower()
         action_type = options['type'].lower()
         source_file, cpu_multiplayer = None, None

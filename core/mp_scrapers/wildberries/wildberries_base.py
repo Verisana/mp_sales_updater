@@ -26,15 +26,15 @@ class WildberriesBaseScraper(ABC):
     marketplace_source = get_mp_wb()
 
     @abstractmethod
-    def update_from_mp(self) -> int:
+    def update_from_mp(self, start_from: int = None) -> int:
         raise NotImplementedError
 
 
 class WildberriesProcessPool:
-    def __init__(self, scraper: WildberriesBaseScraper, cpu_multiplier: Union[int, None] = 1):
+    def __init__(self, scraper: WildberriesBaseScraper, cpu_multiplayer: Union[int, None] = 1):
         self.scraper = scraper
         self.cpu_count = multiprocessing.cpu_count()
-        self.cpu_multiplier = 1 if cpu_multiplier is None else cpu_multiplier
+        self.cpu_multiplier = 1 if cpu_multiplayer is None else cpu_multiplayer
 
         # We can't have processes = 0
         self.processes = max(1, int(self.cpu_count * self.cpu_multiplier))

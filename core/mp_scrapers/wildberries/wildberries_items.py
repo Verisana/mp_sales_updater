@@ -1,7 +1,6 @@
 import multiprocessing
 import time
 from collections import defaultdict
-from multiprocessing import Manager
 from typing import List, Dict, Tuple, Set, Union, Any, Callable
 
 from bs4 import BeautifulSoup
@@ -29,7 +28,7 @@ class WildberriesItemBase(WildberriesBaseScraper):
             'x-requested-with': 'XMLHttpRequest',
         }
 
-    def update_from_mp(self) -> int:
+    def update_from_mp(self, start_from: int = None) -> int:
         raise NotImplementedError
 
     def get_item_or_seller_info(self, indices: List[int], url: str, sep: str, is_special_header: bool = False) -> Dict:
@@ -44,7 +43,7 @@ class WildberriesItemBase(WildberriesBaseScraper):
             if self._is_valid_result(json_result):
                 return json_result
             elif counter > 5:
-                logger.warning(f"Couldn't't get SuppliersName for all requested items "
+                logger.warning(f"Could not get SuppliersName for all requested items "
                                f"from {indices[0]} to {indices[-1]}")
                 return json_result
 
@@ -187,7 +186,7 @@ class WildberriesIncrementItemScraper(WildberriesItemBase):
     def __init__(self):
         super().__init__()
 
-    def update_from_mp(self, start_from: int) -> int:
+    def update_from_mp(self, start_from: int = None) -> int:
         start = time.time()
         connection.close()
         if start_from < self.config.max_item_id:
@@ -207,7 +206,7 @@ class WildberriesIncrementItemScraper(WildberriesItemBase):
                 item['sellerName'] = seller_id_to_name.get(item['id'])
             self.add_items_to_db(items_result['data']['products'])
         elif items_result['state'] == 0 and items_result['data']['products']:
-            logger.warning(f'Error result in {i}: {sellers_result}')
+            logger.warning(f'Error result in {start_from}: {sellers_result}')
             self.add_items_to_db(items_result['data']['products'])
         elif not items_result['data']['products']:
             logger.info(f'Items response is empty: {items_result}')
@@ -256,8 +255,8 @@ class WildberriesIncrementItemScraper(WildberriesItemBase):
 
 
 class IncrementItemUpdaterProcessPool(WildberriesProcessPool):
-    def __init__(self, scraper: WildberriesBaseScraper, cpu_multiplier: int = 1):
-        super().__init__(scraper, cpu_multiplier)
+    def __init__(self, scraper: WildberriesBaseScraper, cpu_multiplayer: Union[int, None] = 1):
+        super().__init__(scraper, cpu_multiplayer)
 
     def start_process_pool(self):
         marketplace_id_max = Item.objects.aggregate(Max('marketplace_id'))['marketplace_id__max']
@@ -282,8 +281,9 @@ class IncrementItemUpdaterProcessPool(WildberriesProcessPool):
                 except KeyboardInterrupt:
                     break
 
+
 class WildberriesItemInCategoryScraper(WildberriesItemBase):
-    def update_from_mp(self) -> int:
+    def update_from_mp(self, start_from: int = None) -> int:
         category_leaves = ItemCategory.objects.filter(children__isnull=True)
 
         for i, category_leaf in enumerate(category_leaves):
@@ -372,7 +372,7 @@ class WildberriesItemInCategoryScraper(WildberriesItemBase):
 
 
 class WildberriesIndividualItemCategoryScraper(WildberriesBaseScraper):
-    def update_from_mp(self) -> int:
+    def update_from_mp(self, start_from: int = None) -> int:
         start = time.time()
         connection.close()
 

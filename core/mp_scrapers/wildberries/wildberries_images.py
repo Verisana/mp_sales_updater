@@ -13,7 +13,7 @@ logger = get_logger()
 
 
 class WildberriesImageScraper(WildberriesBaseScraper):
-    def update_from_mp(self) -> int:
+    def update_from_mp(self, start_from: int = None) -> int:
         start = time.time()
         connection.close()
         image = self._get_image_to_download()
@@ -40,7 +40,8 @@ class WildberriesImageScraper(WildberriesBaseScraper):
         image.save()
 
     def _download_image_and_update_fields(self, image: Image) -> None:
-        img_bytes, _, status_code = self.connector.get_page(RequestBody(image.marketplace_link, 'get', parsing_type='image'))
+        img_bytes, _, status_code = self.connector.get_page(RequestBody(image.marketplace_link, 'get',
+                                                                        parsing_type='image'))
         if status_code == 200:
             image.image_file.save(image.marketplace_link.split('/')[-1], ContentFile(img_bytes), save=False)
         else:
