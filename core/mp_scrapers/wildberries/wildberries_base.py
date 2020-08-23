@@ -1,6 +1,7 @@
 import multiprocessing
 import time
 from abc import ABC, abstractmethod
+from typing import Union
 
 from core.models import Marketplace, MarketplaceScheme
 from core.mp_scrapers.configs import WILDBERRIES_CONFIG
@@ -30,10 +31,10 @@ class WildberriesBaseScraper(ABC):
 
 
 class WildberriesProcessPool:
-    def __init__(self, scraper: WildberriesBaseScraper, cpu_multiplier: int = 1):
+    def __init__(self, scraper: WildberriesBaseScraper, cpu_multiplier: Union[int, None] = 1):
         self.scraper = scraper
         self.cpu_count = multiprocessing.cpu_count()
-        self.cpu_multiplier = cpu_multiplier
+        self.cpu_multiplier = 1 if cpu_multiplier is None else cpu_multiplier
 
         # We can't have processes = 0
         self.processes = max(1, int(self.cpu_count * self.cpu_multiplier))
