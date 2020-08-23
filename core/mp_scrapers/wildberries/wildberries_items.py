@@ -41,10 +41,9 @@ class WildberriesItemBase(WildberriesBaseScraper):
                                                                     method='get', parsing_type='json', headers=headers))
             if self._is_valid_result(json_result):
                 return json_result
-            elif counter > 10:
-                logger.error('Maybe function get_item_or_seller_info in endless loop. Check it!')
-            else:
-                logger.warning("Couldn't get valid response. Try another one")
+            elif counter > 5:
+                logger.warning(f"Couldn't get SuppliersName for all requested items from {indices[0]} to {indices[-1]}")
+                return json_result
 
     def add_items_to_db(self, items: List[Dict]) -> List[Item]:
         brand_id_to_idx, colour_id_to_idx, seller_id_to_idx, items_info = self._aggregate_info_from_items(items)
@@ -197,13 +196,13 @@ class WildberriesIncrementItemScraper(WildberriesItemBase):
 
         start = time.time()
         for i in range(start_from, max_item_id + 1, self.config.bulk_item_step):
-            indexes_to_request = list(range(i, min(max_item_id + 1, i + self.config.bulk_item_step)))
+            indexes_to_request = list(range(14498613, min(max_item_id + 1, 14498613 + self.config.bulk_item_step)))
             items_result = self.get_item_or_seller_info(indexes_to_request, self.config.items_api_url, ';', )
             sellers_result = self.get_item_or_seller_info(indexes_to_request,
                                                           self.config.seller_url, ',', is_special_header=True)
 
             if items_result['state'] == 0 and sellers_result['resultState'] == 0 and items_result['data']['products']:
-                seller_id_to_name = {i['cod1S']: i['supplierName'] for i in sellers_result['value']}
+                seller_id_to_name = {i['cod1S']: i.get('supplierName') for i in sellers_result['value']}
                 for item in items_result['data']['products']:
                     item['sellerName'] = seller_id_to_name.get(item['id'])
                 self.add_items_to_db(items_result['data']['products'])
