@@ -100,7 +100,8 @@ class WildberriesItemBase(WildberriesBaseScraper):
                 if json_result['resultState'] == 0:
                     _ = {i['cod1S']: i['supplierName'] for i in json_result['value']}
                 return True
-            except KeyError:
+            except KeyError as e:
+                logger.warning(f'KeyError caught json_result: {e}')
                 return False
 
     def _aggregate_info_from_items(self, items: List[Dict]) -> Tuple[
