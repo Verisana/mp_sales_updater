@@ -196,6 +196,8 @@ class WildberriesIncrementItemScraper(WildberriesItemBase):
             logger.info(f'New upper bound found: {max_item_id}')
 
         indexes_to_request = list(range(start_from, min(max_item_id + 1, start_from + self.config.bulk_item_step)))
+        if len(indexes_to_request) == 0:
+            return -1
         items_result = self.get_item_or_seller_info(indexes_to_request, self.config.items_api_url, ';', )
         sellers_result = self.get_item_or_seller_info(indexes_to_request,
                                                       self.config.seller_url, ',', is_special_header=True)
@@ -208,7 +210,7 @@ class WildberriesIncrementItemScraper(WildberriesItemBase):
         elif items_result['state'] == 0 and items_result['data']['products']:
             logger.warning(f'Error result in {start_from}: {sellers_result}')
             self.add_items_to_db(items_result['data']['products'])
-        elif not items_result['data']['products']:
+        elif items_result['state'] == 0 and not items_result['data']['products']:
             logger.info(f'Items response is empty: {items_result}')
         else:
             logger.warning(f'Error result in {start_from}: {items_result}')
