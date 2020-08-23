@@ -57,7 +57,8 @@ class Connector:
                     return response.content, None, response.status_code
                 else:
                     logger.warning('Unrecognized type of parsing')
-            logger.error(f"All attempts to connect have been used. Trying another {self.try_count} attempts")
+            logger.error(f"All attempts to connect for {request_info.url[:120]} and {request_info.url[-10:]} "
+                         f"have been used. Trying another {self.try_count} attempts")
 
     def _parse_to_bs(self, response: Response, request_info: RequestBody) -> (BeautifulSoup, bool):
         bs = BeautifulSoup(response.content, 'lxml')
