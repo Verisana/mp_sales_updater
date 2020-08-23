@@ -1,4 +1,5 @@
 import json
+import codecs
 from typing import Union, Dict, Tuple
 
 import requests
@@ -67,7 +68,13 @@ class Connector:
 
     @staticmethod
     def _parse_to_json(response: Response) -> Dict:
-        return response.json()
+        try:
+            return response.json()
+        except json.JSONDecodeError as e:
+            if e.msg.startswith('Unexpected UTF-8 BOM'):
+                return json.loads(response.text.encode().decode('utf-8-sig'))
+            else:
+                raise e
 
     def _send_request(self, request_info: RequestBody) -> Response:
         proxies = self.pm.get_proxy() if self.use_proxy else None
