@@ -210,7 +210,7 @@ class WildberriesIncrementItemScraper(WildberriesItemBase):
             elif items_result['state'] == 0 and items_result['data']['products']:
                 logger.warning(f'Error result in {i}: {sellers_result}')
                 self.add_items_to_db(items_result['data']['products'])
-            elif not items_result['data']['products']:
+            elif items_result['state'] == 0 and not items_result['data']['products']:
                 logger.info(f'Items response is empty: {items_result}')
             else:
                 logger.warning(f'Error result in {i}: {items_result}')
