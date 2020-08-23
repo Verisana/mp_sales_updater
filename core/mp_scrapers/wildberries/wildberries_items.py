@@ -265,20 +265,22 @@ class IncrementItemUpdaterProcessPool(WildberriesProcessPool):
 
         with multiprocessing.Pool(processes=self.processes) as pool:
             while True:
-                if self.busy_processes < self.processes:
-                    start_from = last_parsed
-                    last_parsed += self.scraper.config.bulk_item_step
-                    pool.apply_async(self.scraper.update_from_mp, args=(start_from,),
-                                           callback=self._busy_processes_reducer)
-                    self.busy_processes += 1
+                try:
+                    if self.busy_processes < self.processes:
+                        start_from = last_parsed
+                        last_parsed += self.scraper.config.bulk_item_step
+                        pool.apply_async(self.scraper.update_from_mp, args=(start_from,),
+                                         callback=self._busy_processes_reducer)
+                        self.busy_processes += 1
 
-                    if self.stop_processes:
-                        logger.info(f'Multiprocessing pool stopping. Got result code -1')
-                        break
-                else:
-                    # For the sake of not wasting CPU powers too much
-                    time.sleep(0.3)
-
+                        if self.stop_processes:
+                            logger.info(f'Multiprocessing pool stopping. Got result code -1')
+                            break
+                    else:
+                        # For the sake of not wasting CPU powers too much
+                        time.sleep(0.3)
+                except KeyboardInterrupt:
+                    break
 
 class WildberriesItemInCategoryScraper(WildberriesItemBase):
     def update_from_mp(self) -> int:
