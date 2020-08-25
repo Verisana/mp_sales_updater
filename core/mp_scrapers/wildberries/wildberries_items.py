@@ -293,19 +293,6 @@ class IncrementItemUpdaterProcessPool(WildberriesProcessPool):
 class WildberriesItemInCategoryScraper(WildberriesItemBase):
     def __init__(self):
         super().__init__()
-        logger.debug('Start check if all leaves marked')
-        self._check_if_leaf_marked()
-        logger.debug('Stop check if all leaves marked')
-
-    @staticmethod
-    def _check_if_leaf_marked():
-        categories = ItemCategory.objects.all()
-        for category in categories:
-            if category.children.exists():
-                category.is_leaf = False
-            else:
-                category.is_leaf = True
-        ItemCategory.objects.bulk_update(categories, ['is_leaf'])
 
     def update_from_mp(self, start_from: int = None) -> int:
         start = time.time()
@@ -319,8 +306,8 @@ class WildberriesItemInCategoryScraper(WildberriesItemBase):
 
     def _get_category_leave(self) -> ItemCategory:
         with transaction.atomic():
-            leaf = ItemCategory.objects.select_for_update(skip_locked=True).filter(
-                is_leaf=True, marketplace_source=self.marketplace_source, is_deleted=False,
+            leaf = ItemCategory.objects.select_for_update(skip_locked=True).exclude(children=None).filter(
+                marketplace_source=self.marketplace_source, is_deleted=False,
                 start_parse_time__isnull=True, next_parse_time__lte=now()).first()
             if leaf is not None:
                 leaf.start_parse_time = now()
