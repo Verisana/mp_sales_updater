@@ -298,6 +298,7 @@ class WildberriesItemInCategoryScraper(WildberriesItemBase):
         start = time.time()
         connection.close()
         category_leaf = self._get_category_leave()
+        logger.debug(f'Start update from mp for {category_leaf.name}')
         if category_leaf is None:
             return -1
         self._process_all_pages(category_leaf)
