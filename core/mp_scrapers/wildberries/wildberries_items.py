@@ -6,7 +6,7 @@ from typing import List, Dict, Tuple, Set, Union, Any, Callable
 from bs4 import BeautifulSoup
 from bs4.element import Tag
 from django.db import connection, transaction
-from django.db.models import Max
+from django.db.models import Max, Q
 from django.db.models.base import ModelBase
 from django.utils.timezone import now
 
@@ -293,24 +293,34 @@ class IncrementItemUpdaterProcessPool(WildberriesProcessPool):
 class WildberriesItemInCategoryScraper(WildberriesItemBase):
     def __init__(self):
         super().__init__()
-        logger.debug(f'Start check start parse time')
-        self._check_start_parse_time()
-        logger.debug(f'Stop check start parse time')
+        logger.debug(f'Start check parse times')
+        self._check_parse_times()
+        logger.debug(f'Stop check parse times')
 
     @staticmethod
-    def _check_start_parse_time():
-        leaves = ItemCategory.objects.filter(children__isnull=True, start_parse_time__isnull=False)
+    def _check_parse_times():
+        leaves = ItemCategory.objects.filter(Q(start_parse_time__isnull=False) | Q(next_parse_time__isnull=True),
+                                             children__isnull=True)
+        current_time = now()
         for leaf in leaves:
             leaf.start_parse_time = None
+            leaf.next_parse_time = current_time
+        ItemCategory.objects.bulk_update(leaves, ['start_parse_time', 'next_parse_time'])
+
+    @staticmethod
+    def _check_next_parse_time():
+        leaves = ItemCategory.objects.filter(children__isnull=True, next_parse_time__isnull=False)
+        for leaf in leaves:
+            leaf.next = None
         ItemCategory.objects.bulk_update(leaves, ['start_parse_time'])
 
     def update_from_mp(self, start_from: int = None) -> int:
         start = time.time()
         connection.close()
         category_leaf = self._get_category_leave()
-        logger.debug(f'Start update from mp for {category_leaf.name}')
         if category_leaf is None:
             return -1
+        logger.debug(f'Start update from mp for {category_leaf.name}')
         self._process_all_pages(category_leaf)
         logger.info(f'{category_leaf.name} elapsed {(time.time() - start):0.0f} seconds')
         return 0
