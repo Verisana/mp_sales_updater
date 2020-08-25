@@ -299,7 +299,7 @@ class WildberriesItemInCategoryScraper(WildberriesItemBase):
 
     @staticmethod
     def _check_start_parse_time():
-        leaves = ItemCategory.objects.filer(children__isnull=True)
+        leaves = ItemCategory.objects.filter(children__isnull=True, start_parse_time__isnull=False)
         for leaf in leaves:
             leaf.start_parse_time = None
         ItemCategory.objects.bulk_update(leaves, ['start_parse_time'])
@@ -378,9 +378,6 @@ class WildberriesItemInCategoryScraper(WildberriesItemBase):
         for item in items:
             item.categories.add(category_leaf)
             item.images.add(item_imgs[item.marketplace_id])
-            if not item.is_categories_filled:
-                item.is_categories_filled = True
-            item.save()
             updated_ids.add(item.marketplace_id)
         return updated_ids
 
