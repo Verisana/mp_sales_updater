@@ -327,7 +327,7 @@ class WildberriesItemInCategoryScraper(WildberriesItemBase):
 
     def _get_category_leave(self) -> ItemCategory:
         with transaction.atomic():
-            leaf = ItemCategory.objects.select_for_update(skip_locked=True).exclude(children=None).filter(
+            leaf = ItemCategory.objects.select_for_update(skip_locked=True).exclude(children__isnull=False).filter(
                 marketplace_source=self.marketplace_source, is_deleted=False,
                 start_parse_time__isnull=True, next_parse_time__lte=now()).first()
             if leaf is not None:
@@ -427,7 +427,7 @@ class WildberriesIndividualItemCategoryScraper(WildberriesBaseScraper):
 
     def _get_item_to_update(self) -> Item:
         with transaction.atomic():
-            item = Item.objects.select_for_update(skip_locked=True).exclude(categories=None).filter(
+            item = Item.objects.select_for_update(skip_locked=True).exclude(categories__isnull=False).filter(
                 marketplace_source=self.marketplace_source, items_start_parse_time__isnull=True, is_deleted=False,
                 no_individual_category=False).first()
             if item:
