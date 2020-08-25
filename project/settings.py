@@ -7,6 +7,7 @@ import os
 import ast
 
 import sentry_sdk
+from django_query_profiler.settings import *
 from sentry_sdk.integrations.django import DjangoIntegration
 from dotenv import load_dotenv
 
