@@ -31,7 +31,7 @@ class WildberriesRevisionScraper(WildberriesBaseScraper):
 
     def _get_items_to_update(self) -> Tuple[List[Item], List[int]]:
         with transaction.atomic():
-            filtered_items_for_update = Item.objects.select_for_update(skip_locked=True).filter(
+            filtered_items_for_update = Item.objects.select_related('marketplace_source').select_for_update(skip_locked=True).filter(
                 is_deleted=False, marketplace_source=self.marketplace_source, revisions_next_parse_time__lte=now(),
                 revisions_start_parse_time__isnull=True).order_by(
                 'revisions_next_parse_time')[:self.config.bulk_item_step]

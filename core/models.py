@@ -64,9 +64,6 @@ class Item(StandardFields):
 
     is_deleted = models.BooleanField(default=False, db_index=True)
 
-    # This flag is needed because we can't select FOR UPDATE from ManyToMany field with left outer join
-    is_categories_filled = models.BooleanField(default=False, db_index=True)
-
     no_individual_category = models.BooleanField(default=False, db_index=True)
 
     def __str__(self):
@@ -109,8 +106,6 @@ class ItemCategory(MPTTModel, StandardFields):
     parse_frequency = models.DurationField(default=timedelta(days=7))
     next_parse_time = models.DateTimeField(null=True, blank=True)
     start_parse_time = models.DateTimeField(null=True, blank=True)
-
-    is_leaf = models.BooleanField(default=False)
 
     class MPTTMeta:
         order_insertion_by = ['name']
