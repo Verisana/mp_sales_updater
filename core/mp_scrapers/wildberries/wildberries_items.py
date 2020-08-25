@@ -189,6 +189,8 @@ class WildberriesIncrementItemScraper(WildberriesItemBase):
     def update_from_mp(self, start_from: int = None) -> int:
         start = time.time()
         connection.close()
+        if start_from is None:
+            start_from = self.get_last_parsed_id()
         if start_from < self.config.max_item_id:
             max_item_id = self.config.max_item_id
         else:
@@ -217,6 +219,10 @@ class WildberriesIncrementItemScraper(WildberriesItemBase):
 
         logger.info(f'{start_from} elapsed {(time.time() - start):0.0f} seconds')
         return 0
+
+    @staticmethod
+    def get_last_parsed_id():
+        return Item.objects.aggregate(Max('marketplace_id'))['marketplace_id__max']
 
     def _get_max_item_id(self) -> int:
         try:
@@ -261,7 +267,7 @@ class IncrementItemUpdaterProcessPool(WildberriesProcessPool):
         super().__init__(scraper, cpu_multiplayer)
 
     def start_process_pool(self):
-        marketplace_id_max = Item.objects.aggregate(Max('marketplace_id'))['marketplace_id__max']
+        marketplace_id_max = WildberriesIncrementItemScraper().get_last_parsed_id()
         last_parsed = 1 if marketplace_id_max is None else marketplace_id_max
 
         with multiprocessing.Pool(processes=self.processes) as pool:
