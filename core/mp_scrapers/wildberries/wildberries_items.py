@@ -293,6 +293,16 @@ class IncrementItemUpdaterProcessPool(WildberriesProcessPool):
 class WildberriesItemInCategoryScraper(WildberriesItemBase):
     def __init__(self):
         super().__init__()
+        logger.debug(f'Start check start parse time')
+        self._check_start_parse_time()
+        logger.debug(f'Stop check start parse time')
+
+    @staticmethod
+    def _check_start_parse_time():
+        leaves = ItemCategory.objects.filer(children__isnull=True)
+        for leaf in leaves:
+            leaf.start_parse_time = None
+        ItemCategory.objects.bulk_update(leaves, ['start_parse_time'])
 
     def update_from_mp(self, start_from: int = None) -> int:
         start = time.time()
@@ -410,9 +420,9 @@ class WildberriesIndividualItemCategoryScraper(WildberriesBaseScraper):
 
     def _get_item_to_update(self) -> Item:
         with transaction.atomic():
-            item = Item.objects.select_for_update(skip_locked=True).filter(
+            item = Item.objects.select_for_update(skip_locked=True).exclude(categories=None).filter(
                 marketplace_source=self.marketplace_source, items_start_parse_time__isnull=True, is_deleted=False,
-                no_individual_category=False, is_categories_filled=False).first()
+                no_individual_category=False).first()
             if item:
                 self._update_start_parse_time(item)
                 return item
