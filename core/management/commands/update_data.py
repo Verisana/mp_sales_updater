@@ -34,6 +34,7 @@ class Command(BaseCommand):
                     wb_process_pool = IncrementItemUpdaterProcessPool(scraper, cpu_multiplayer=cpu_multiplayer)
                 elif action_type == 'items_in_category':
                     scraper = WildberriesItemInCategoryScraper()
+                    wb_process_pool = WildberriesProcessPool(scraper, cpu_multiplayer=cpu_multiplayer)
                 elif action_type == 'items_individual_category':
                     scraper = WildberriesIndividualItemCategoryScraper()
                     wb_process_pool = WildberriesProcessPool(scraper, cpu_multiplayer=cpu_multiplayer)

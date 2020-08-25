@@ -110,6 +110,8 @@ class ItemCategory(MPTTModel, StandardFields):
     next_parse_time = models.DateTimeField(null=True, blank=True)
     start_parse_time = models.DateTimeField(null=True, blank=True)
 
+    is_leaf = models.BooleanField(default=False)
+
     class MPTTMeta:
         order_insertion_by = ['name']
 

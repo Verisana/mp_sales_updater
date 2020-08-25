@@ -285,15 +285,41 @@ class IncrementItemUpdaterProcessPool(WildberriesProcessPool):
 
 
 class WildberriesItemInCategoryScraper(WildberriesItemBase):
+    def __init__(self):
+        super().__init__()
+        logger.debug('Start check if all leaves marked')
+        self._check_if_leaf_marked()
+        logger.debug('Stop check if all leaves marked')
+
+    @staticmethod
+    def _check_if_leaf_marked():
+        categories = ItemCategory.objects.all()
+        for category in categories:
+            if category.children.exists():
+                category.is_leaf = False
+            else:
+                category.is_leaf = True
+        ItemCategory.objects.bulk_update(categories, ['is_leaf'])
+
     def update_from_mp(self, start_from: int = None) -> int:
-        category_leaves = ItemCategory.objects.filter(children__isnull=True)
-
-        for i, category_leaf in enumerate(category_leaves):
-            start = time.time()
-            self._process_all_pages(category_leaf)
-            logger.info(f'{i+1}/{len(category_leaf)} elapsed {(time.time() - start):0.0f} seconds')
-
+        start = time.time()
+        connection.close()
+        category_leaf = self._get_category_leave()
+        if category_leaf is None:
+            return -1
+        self._process_all_pages(category_leaf)
+        logger.info(f'{category_leaf.name} elapsed {(time.time() - start):0.0f} seconds')
         return 0
+
+    def _get_category_leave(self) -> ItemCategory:
+        with transaction.atomic():
+            leaf = ItemCategory.objects.select_for_update(skip_locked=True).filter(
+                is_leaf=True, marketplace_source=self.marketplace_source, is_deleted=False,
+                start_parse_time__isnull=True, next_parse_time__lte=now()).first()
+            if leaf is not None:
+                leaf.start_parse_time = now()
+                leaf.save()
+                return leaf
 
     def _process_all_pages(self, category_leaf: ItemCategory):
         counter = 1
@@ -302,6 +328,9 @@ class WildberriesItemInCategoryScraper(WildberriesItemBase):
             bs, _, status_code = self.connector.get_page(RequestBody(category_leaf.marketplace_category_url + page_num,
                                                                      'get'))
             if status_code == 404:
+                category_leaf.next_parse_time = now() + category_leaf.parse_frequency
+                category_leaf.start_parse_time = None
+                category_leaf.save()
                 break
             else:
                 logger.debug(f'\tPage number {counter} for {category_leaf.name}')
@@ -347,7 +376,7 @@ class WildberriesItemInCategoryScraper(WildberriesItemBase):
             item.images.add(item_imgs[item.marketplace_id])
             if not item.is_categories_filled:
                 item.is_categories_filled = True
-                item.save()
+            item.save()
             updated_ids.add(item.marketplace_id)
         return updated_ids
 
@@ -377,9 +406,7 @@ class WildberriesIndividualItemCategoryScraper(WildberriesBaseScraper):
     def update_from_mp(self, start_from: int = None) -> int:
         start = time.time()
         connection.close()
-
         item = self._get_item_to_update()
-
         if item is not None:
             self._individual_item_update(item)
             logger.debug(f'Done in {time.time() - start:0.0f} seconds')
