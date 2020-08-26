@@ -114,7 +114,7 @@ class ItemCategory(MPTTModel, StandardFields):
         verbose_name_plural = 'item categories'
 
     def __str__(self):
-        return self.name
+        return f'{self.name} ({self.id})'
 
 
 class Image(StandardFields):
