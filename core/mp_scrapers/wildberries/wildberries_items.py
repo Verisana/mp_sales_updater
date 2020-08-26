@@ -420,6 +420,7 @@ class WildberriesItemInCategoryScraper(WildberriesItemBase):
                     break
             img_obj = Image(marketplace_link=img_link, marketplace_source=self.marketplace_source,
                             next_parse_time=now())
+            # If image link filled with data
             if img_link != 'https:':
                 imgs[int(item['data-popup-nm-id'])] = img_obj
                 link_to_ids[img_link] = int(item['data-popup-nm-id'])
