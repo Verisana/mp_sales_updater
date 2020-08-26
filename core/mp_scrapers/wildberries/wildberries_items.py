@@ -341,7 +341,7 @@ class WildberriesItemInCategoryScraper(WildberriesItemBase):
             page_num = f'?page={counter}'
             bs, _, status_code = self.connector.get_page(RequestBody(category_leaf.marketplace_category_url + page_num,
                                                                      'get'))
-            if status_code == 404:
+            if status_code == 404 or self._is_items_not_found(bs, category_leaf):
                 category_leaf.next_parse_time = now() + category_leaf.parse_frequency
                 category_leaf.start_parse_time = None
                 category_leaf.save()
@@ -351,19 +351,21 @@ class WildberriesItemInCategoryScraper(WildberriesItemBase):
                 self._process_items_on_page(bs, category_leaf)
             counter += 1
 
-    def _process_items_on_page(self, bs: BeautifulSoup, category_leaf: ItemCategory):
+    @staticmethod
+    def _is_items_not_found(bs: BeautifulSoup, category_leaf: ItemCategory) -> bool:
         all_items = bs.find('div', class_='catalog_main_table')
         if all_items is None:
             all_items = bs.find('div', id='divGoodsNotFound')
             if all_items is not None:
                 logger.info(f'Empty category {category_leaf}')
-                return None
             else:
                 logger.error(f'Something is wrong while getting divGoodsNotFound for {category_leaf}')
-                return None
+            return True
         else:
-            all_items = all_items.findAll('div', class_='dtList')
+            return False
 
+    def _process_items_on_page(self, bs: BeautifulSoup, category_leaf: ItemCategory):
+        all_items = bs.find('div', class_='catalog_main_table').findAll('div', class_='dtList')
         item_ids, img_id_to_objs, img_link_to_ids = self._extract_ids_imgs_from_page(all_items)
 
         imgs_filtered = Image.objects.filter(marketplace_link__in=img_link_to_ids.keys())
