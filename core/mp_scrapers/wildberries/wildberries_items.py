@@ -320,9 +320,9 @@ class WildberriesItemInCategoryScraper(WildberriesItemBase):
         category_leaf = self._get_category_leave()
         if category_leaf is None:
             return -1
-        logger.debug(f'Start update from mp for {category_leaf.name} ({category_leaf.id})')
+        logger.debug(f'Start update from mp for {category_leaf}')
         self._process_all_pages(category_leaf)
-        logger.info(f'{category_leaf.name} elapsed {(time.time() - start):0.0f} seconds')
+        logger.info(f'{category_leaf} elapsed {(time.time() - start):0.0f} seconds')
         return 0
 
     def _get_category_leave(self) -> ItemCategory:
@@ -347,12 +347,23 @@ class WildberriesItemInCategoryScraper(WildberriesItemBase):
                 category_leaf.save()
                 break
             else:
-                logger.debug(f'\tPage number {counter} for {category_leaf.name}')
+                logger.debug(f'\tPage number {counter} for {category_leaf}')
                 self._process_items_on_page(bs, category_leaf)
             counter += 1
 
     def _process_items_on_page(self, bs: BeautifulSoup, category_leaf: ItemCategory):
-        all_items = bs.find('div', class_='catalog_main_table').findAll('div', class_='dtList')
+        all_items = bs.find('div', class_='catalog_main_table')
+        if all_items is None:
+            all_items = bs.find('div', id_='divGoodsNotFound')
+            if all_items is not None:
+                logger.info(f'Empty category {category_leaf}')
+                return None
+            else:
+                logger.error(f'Something is wrong while getting divGoodsNotFound for {category_leaf}')
+                return None
+        else:
+            all_items = all_items.findAll('div', class_='dtList')
+
         item_ids, img_id_to_objs, img_link_to_ids = self._extract_ids_imgs_from_page(all_items)
 
         imgs_filtered = Image.objects.filter(marketplace_link__in=img_link_to_ids.keys())
