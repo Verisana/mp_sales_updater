@@ -320,7 +320,7 @@ class WildberriesItemInCategoryScraper(WildberriesItemBase):
         category_leaf = self._get_category_leave()
         if category_leaf is None:
             return -1
-        logger.debug(f'Start update from mp for {category_leaf.name}')
+        logger.debug(f'Start update from mp for {category_leaf.name} ({category_leaf.id})')
         self._process_all_pages(category_leaf)
         logger.info(f'{category_leaf.name} elapsed {(time.time() - start):0.0f} seconds')
         return 0
