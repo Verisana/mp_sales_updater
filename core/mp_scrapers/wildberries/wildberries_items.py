@@ -354,7 +354,7 @@ class WildberriesItemInCategoryScraper(WildberriesItemBase):
     def _process_items_on_page(self, bs: BeautifulSoup, category_leaf: ItemCategory):
         all_items = bs.find('div', class_='catalog_main_table')
         if all_items is None:
-            all_items = bs.find('div', id_='divGoodsNotFound')
+            all_items = bs.find('div', id='divGoodsNotFound')
             if all_items is not None:
                 logger.info(f'Empty category {category_leaf}')
                 return None
