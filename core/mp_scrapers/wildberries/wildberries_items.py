@@ -277,7 +277,7 @@ class IncrementItemUpdaterProcessPool(WildberriesProcessPool):
                         start_from = last_parsed
                         last_parsed += self.scraper.config.bulk_item_step
                         pool.apply_async(self.scraper.update_from_mp, args=(start_from,),
-                                         callback=self._busy_processes_reducer)
+                                         callback=self._busy_processes_reducer, error_callback=self._stop_processes)
                         self.busy_processes += 1
 
                         if self.stop_processes:
