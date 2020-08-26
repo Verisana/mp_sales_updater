@@ -317,8 +317,6 @@ class WildberriesItemInCategoryScraper(WildberriesItemBase):
     def update_from_mp(self, start_from: int = None) -> int:
         start = time.time()
         connection.close()
-        a = [22]
-        a[321]
         category_leaf = self._get_category_leave()
         if category_leaf is None:
             return -1
