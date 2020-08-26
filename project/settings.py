@@ -148,7 +148,7 @@ LOGGING = {
             'class': 'logging.FileHandler',
             'filename': os.getenv('JSON_LOG_FILE'),
             'level': 'INFO',
-            'formatter': 'FullJsonFormatter',
+            'formatter': 'verbose',
         },
         'console': {
             'class': 'logging.StreamHandler',
