@@ -1,6 +1,8 @@
 FROM python:3.8-buster
 
-WORKDIR /usr/mp_sales_updater
+RUN useradd --create-home gr1902
+WORKDIR /home/gr1902/mp_sales_updater
+USER gr1902
 
 COPY ./requirements.txt .
 RUN pip install -r requirements.txt
