@@ -328,10 +328,11 @@ class WildberriesItemInCategoryScraper(WildberriesItemBase):
 
     def _get_category_leave(self) -> ItemCategory:
         with transaction.atomic():
+            start = time.time()
             num_items = ItemCategory.objects.exclude(children__isnull=False).filter(
                 marketplace_source=self.marketplace_source, is_deleted=False,
                 start_parse_time__isnull=True, next_parse_time__lte=now()).count()
-            logger.debug(f'Remained {num_items}')
+            logger.debug(f'Remained {num_items} operation elapsed {time.time()-start:0.2f}')
 
             leaf = ItemCategory.objects.select_for_update(skip_locked=True).exclude(children__isnull=False).filter(
                 marketplace_source=self.marketplace_source, is_deleted=False,
