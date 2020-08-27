@@ -377,8 +377,7 @@ class WildberriesItemInCategoryScraper(WildberriesItemBase):
                 filtered_imgs_ids.append(item_id)
 
             new_imgs = Image.objects.bulk_create(
-                [img for marketplace_id, img in img_id_to_objs.items() if marketplace_id not in filtered_imgs_ids],
-                ignore_conflicts=True) # Maybe you shouldn't ignore_conflicts here
+                [img for marketplace_id, img in img_id_to_objs.items() if marketplace_id not in filtered_imgs_ids])
 
         for new_img in new_imgs:
             item_id = img_link_to_ids[new_img.marketplace_link]
