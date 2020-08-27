@@ -377,7 +377,7 @@ class WildberriesItemInCategoryScraper(WildberriesItemBase):
                 filtered_imgs_ids.append(item_id)
 
             new_imgs = Image.objects.bulk_create(
-                [img for marketplace_id, img in img_id_to_objs.items() if marketplace_id not in filtered_imgs_ids])
+                [img for marketplace_id, img in img_id_to_objs.items() if img.pk is not None])
 
         for new_img in new_imgs:
             item_id = img_link_to_ids[new_img.marketplace_link]
@@ -408,23 +408,19 @@ class WildberriesItemInCategoryScraper(WildberriesItemBase):
     def _extract_ids_imgs_from_page(self, all_items: List[Tag]) -> Tuple[List[int], Dict[int, Image], Dict[str, int]]:
         marketplace_ids, imgs, link_to_ids = [], {}, {}
         for item in all_items:
-            marketplace_ids.append(int(item['data-popup-nm-id']))
-
-            img_link = 'https:'
             for tag in item.findAll('img'):
                 try:
                     link = tag['src']
                 except AttributeError:
                     continue
                 if 'blank' not in link:
-                    img_link += link
+                    img_link = 'https:' + link
+                    img_obj = Image(marketplace_link=img_link, marketplace_source=self.marketplace_source,
+                                    next_parse_time=now())
+                    imgs[int(item['data-popup-nm-id'])] = img_obj
+                    link_to_ids[img_link] = int(item['data-popup-nm-id'])
+                    marketplace_ids.append(int(item['data-popup-nm-id']))
                     break
-            img_obj = Image(marketplace_link=img_link, marketplace_source=self.marketplace_source,
-                            next_parse_time=now())
-            # If image link filled with data
-            if img_link != 'https:':
-                imgs[int(item['data-popup-nm-id'])] = img_obj
-                link_to_ids[img_link] = int(item['data-popup-nm-id'])
         return marketplace_ids, imgs, link_to_ids
 
 
