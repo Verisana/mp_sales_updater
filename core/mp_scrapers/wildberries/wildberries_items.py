@@ -370,7 +370,7 @@ class WildberriesItemInCategoryScraper(WildberriesItemBase):
         item_ids, img_id_to_objs, img_link_to_ids = self._extract_ids_imgs_from_page(all_items)
 
         self.lock.acquire()
-        imgs_filtered = Image.objects.select_for_update().filter(marketplace_link__in=img_link_to_ids.keys())
+        imgs_filtered = Image.objects.filter(marketplace_link__in=img_link_to_ids.keys())
         filtered_imgs_ids = []
         for img_filtered in imgs_filtered:
             item_id = img_link_to_ids[img_filtered.marketplace_link]
