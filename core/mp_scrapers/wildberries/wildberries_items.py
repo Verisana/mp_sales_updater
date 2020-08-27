@@ -296,6 +296,7 @@ class WildberriesItemInCategoryScraper(WildberriesItemBase):
         logger.debug(f'Start check parse times')
         self._check_parse_times()
         logger.debug(f'Stop check parse times')
+        self.lock = multiprocessing.Manager().Lock()
 
     @staticmethod
     def _check_parse_times():
@@ -368,16 +369,17 @@ class WildberriesItemInCategoryScraper(WildberriesItemBase):
         all_items = bs.find('div', class_='catalog_main_table').findAll('div', class_='dtList')
         item_ids, img_id_to_objs, img_link_to_ids = self._extract_ids_imgs_from_page(all_items)
 
-        with transaction.atomic():
-            imgs_filtered = Image.objects.select_for_update().filter(marketplace_link__in=img_link_to_ids.keys())
-            filtered_imgs_ids = []
-            for img_filtered in imgs_filtered:
-                item_id = img_link_to_ids[img_filtered.marketplace_link]
-                img_id_to_objs[item_id] = img_filtered
-                filtered_imgs_ids.append(item_id)
+        self.lock.acquire()
+        imgs_filtered = Image.objects.select_for_update().filter(marketplace_link__in=img_link_to_ids.keys())
+        filtered_imgs_ids = []
+        for img_filtered in imgs_filtered:
+            item_id = img_link_to_ids[img_filtered.marketplace_link]
+            img_id_to_objs[item_id] = img_filtered
+            filtered_imgs_ids.append(item_id)
 
-            new_imgs = Image.objects.bulk_create(
-                [img for marketplace_id, img in img_id_to_objs.items() if img.pk is not None])
+        new_imgs = Image.objects.bulk_create(
+            [img for marketplace_id, img in img_id_to_objs.items() if marketplace_id not in filtered_imgs_ids])
+        self.lock.release()
 
         for new_img in new_imgs:
             item_id = img_link_to_ids[new_img.marketplace_link]
