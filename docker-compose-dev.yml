@@ -1,1 +1,10 @@
 version: '3'
+services:
+  mp_sales_updater:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    volumes:
+      - /core/utils/webshare_proxies.txt:/core/utils/webshare_proxies.txt
+    env_file:
+      - .env
