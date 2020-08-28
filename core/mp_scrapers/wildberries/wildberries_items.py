@@ -447,12 +447,11 @@ class WildberriesIndividualItemCategoryScraper(WildberriesBaseScraper):
 
     @staticmethod
     def _check_parse_times():
-        items = Item.objects.filter(Q(start_parse_time__isnull=False) | Q(items_next_parse_time__isnull=True))
+        items = Item.objects.filter(items_start_parse_time__isnull=False)
         current_time = now()
         for item in items:
-            item.start_parse_time = None
-            item.next_parse_time = current_time
-        ItemCategory.objects.bulk_update(items, ['start_parse_time', 'items_next_parse_time'])
+            item.items_start_parse_time = None
+        ItemCategory.objects.bulk_update(items, ['items_start_parse_time'])
 
     def update_from_mp(self, start_from: int = None) -> int:
         start = time.time()
