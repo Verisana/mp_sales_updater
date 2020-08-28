@@ -10,6 +10,7 @@ from django.db.models import Max, Q
 from django.db.models.base import ModelBase
 from django.utils.timezone import now
 
+from core.exceptions import SalesUpdaterError
 from core.models import ItemCategory, Item, Brand, Colour, Image, Seller
 from core.mp_scrapers.wildberries.wildberries_base import WildberriesBaseScraper, WildberriesProcessPool
 from core.types import RequestBody
@@ -366,7 +367,11 @@ class WildberriesItemInCategoryScraper(WildberriesItemBase):
             if all_items is not None:
                 logger.info(f'Empty category {category_leaf}')
             else:
-                logger.error(f'Something is wrong while getting divGoodsNotFound for {category_leaf}')
+                with open(f'logs/bs_{category_leaf}.txt', 'w') as file:
+                    file.write(bs.prettify())
+                logger.error(f'Something is wrong while getting divGoodsNotFound for {category_leaf}. '
+                             f'Beautiful Soup response has been saved')
+                raise SalesUpdaterError
             return True
         else:
             return False

@@ -1,10 +1,18 @@
 FROM python:3.8-buster
 
 RUN useradd --create-home gr1902
-WORKDIR /home/gr1902/mp_sales_updater
+RUN chown -R gr1902 /home/gr1902
 USER gr1902
 
+ENV VIRTUAL_ENV=/home/gr1902/venv
+RUN python3 -m venv $VIRTUAL_ENV
+ENV PATH="$VIRTUAL_ENV/bin:$PATH"
+
+WORKDIR /home/gr1902/mp_sales_updater
 COPY ./requirements.txt .
+# RUN /home/gr1902/venv/bin/python3 -m pip install --upgrade pip
 RUN pip install -r requirements.txt
 
 COPY . .
+
+CMD [".manage.py", "update_data", "wildberries", "items_in_category", "--cpu_multiplayer 0"]
