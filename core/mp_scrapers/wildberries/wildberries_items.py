@@ -313,13 +313,6 @@ class WildberriesItemInCategoryScraper(WildberriesItemBase):
             leaf.next_parse_time = current_time
         ItemCategory.objects.bulk_update(leaves, ['start_parse_time', 'next_parse_time'])
 
-    @staticmethod
-    def _check_next_parse_time():
-        leaves = ItemCategory.objects.filter(children__isnull=True, next_parse_time__isnull=False)
-        for leaf in leaves:
-            leaf.next = None
-        ItemCategory.objects.bulk_update(leaves, ['start_parse_time'])
-
     def update_from_mp(self, start_from: int = None) -> int:
         start = time.time()
         connection.close()
@@ -445,6 +438,22 @@ class WildberriesItemInCategoryScraper(WildberriesItemBase):
 
 
 class WildberriesIndividualItemCategoryScraper(WildberriesBaseScraper):
+    def __init__(self):
+        super().__init__()
+        logger.debug(f'Start check parse times')
+        self._check_parse_times()
+        logger.debug(f'Stop check parse times')
+        self.lock = multiprocessing.Manager().Lock()
+
+    @staticmethod
+    def _check_parse_times():
+        items = Item.objects.filter(Q(start_parse_time__isnull=False) | Q(items_next_parse_time__isnull=True))
+        current_time = now()
+        for item in items:
+            item.start_parse_time = None
+            item.next_parse_time = current_time
+        ItemCategory.objects.bulk_update(items, ['start_parse_time', 'items_next_parse_time'])
+
     def update_from_mp(self, start_from: int = None) -> int:
         start = time.time()
         connection.close()
@@ -492,7 +501,7 @@ class WildberriesIndividualItemCategoryScraper(WildberriesBaseScraper):
         list_of_breadcrumbs = item_bs.find('ul', class_="bread-crumbs")
         if list_of_breadcrumbs is not None:
             category_names = []
-            for tag in reversed(list_of_breadcrumbs.findAll('li', class_="breadcrumbs-item secondary")):
+            for tag in list_of_breadcrumbs.findAll('li', class_="breadcrumbs-item secondary"):
                 if 'brands' not in tag.find('a')['href']:
                     category_name = tag.find('a').text.strip('\n')
                     if category_name.lower() != 'главная':
@@ -501,7 +510,8 @@ class WildberriesIndividualItemCategoryScraper(WildberriesBaseScraper):
 
     def _get_category_from_name(self, category_names: List[str]) -> Union[ItemCategory, None]:
         try:
-            all_category_candidates = ItemCategory.objects.select_related('parent').filter(name=category_names[-1])
+            all_category_candidates = ItemCategory.objects.select_related('parent').filter(
+                name=category_names[-1].lower())
         except IndexError:
             logger.error(f'No category name sent to get ItemCategory by name: {category_names}')
             return None
