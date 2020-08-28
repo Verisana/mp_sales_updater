@@ -81,7 +81,11 @@ class WildberriesItemBase(WildberriesBaseScraper):
                 else:
                     colours[-1].append(item['colour'].pk)
             except Item.MultipleObjectsReturned:
-                logger.error(f'Something is wrong. You should get one object for params: {get_params}')
+                logger.warning(f'Something is wrong. You should get one object for params: {get_params}')
+                existing_items = Item.objects.filter(**get_params)
+                old_items.append(existing_items[0])
+                for duplicate_item in existing_items[1:]:
+                    duplicate_item.delete()
                 continue
 
         if new_items:
