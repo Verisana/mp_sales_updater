@@ -349,6 +349,9 @@ class WildberriesItemInCategoryScraper(WildberriesItemBase):
             page_num = f'?page={counter}'
             bs, _, status_code = self.connector.get_page(RequestBody(category_leaf.marketplace_category_url + page_num,
                                                                      'get'))
+            if status_code not in [200, 404]:
+                logger.warning(f'Bad response for {category_leaf} from marketplace. Try one more time')
+                continue
             if status_code == 404 or self._is_items_not_found(bs, category_leaf):
                 category_leaf.next_parse_time = now() + category_leaf.parse_frequency
                 category_leaf.start_parse_time = None
