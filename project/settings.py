@@ -146,7 +146,7 @@ LOGGING = {
         },
         'telegram': {
             'class': 'core.utils.logging_helpers.TelegramHandler',
-            'level': 'WARNING',
+            'level': 'ERROR',
             'formatter': 'FullJsonFormatter',
             'token': os.getenv('TELEGRAM_TOKEN'),
             'chat_id': os.getenv('TELEGRAM_CHAT_ID'),
