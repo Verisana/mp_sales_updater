@@ -8,3 +8,7 @@ services:
       - /core/utils/webshare_proxies.txt:/core/utils/webshare_proxies.txt
     env_file:
       - .env
+  postgresql:
+    image: postgres:12
+    env_file:
+      - db.env
