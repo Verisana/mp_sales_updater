@@ -1,14 +1,14 @@
 version: '3'
 services:
-  mp_sales_updater:
-    build:
-      context: .
-      dockerfile: Dockerfile.dev
-    volumes:
-      - /core/utils/webshare_proxies.txt:/core/utils/webshare_proxies.txt
-    env_file:
-      - .env
   postgresql:
     image: postgres:12
     env_file:
       - db.env
+  mp_sales_updater:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    env_file:
+      - .env
+    volumes:
+      - /core/utils/webshare_proxies.txt:/core/utils/webshare_proxies.txt

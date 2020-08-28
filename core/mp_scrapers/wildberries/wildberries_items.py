@@ -488,35 +488,49 @@ class WildberriesIndividualItemCategoryScraper(WildberriesBaseScraper):
             logger.info(f'item {item.marketplace_id} is not used anymore')
         item.save()
 
-    def _parse_category(self, item_bs: BeautifulSoup) -> ItemCategory:
+    def _parse_category(self, item_bs: BeautifulSoup) -> Union[ItemCategory, None]:
         list_of_breadcrumbs = item_bs.find('ul', class_="bread-crumbs")
         if list_of_breadcrumbs is not None:
-            descendant_name, parent_name, parent_parent_name = '', '', ''
+            category_names = []
             for tag in reversed(list_of_breadcrumbs.findAll('li', class_="breadcrumbs-item secondary")):
                 if 'brands' not in tag.find('a')['href']:
-                    if descendant_name == '':
-                        descendant_name = tag.find('a').text.strip('\n')
-                    elif parent_name == '':
-                        parent_name = tag.find('a').text.strip('\n')
-                    elif parent_parent_name == '':
-                        parent_parent_name = tag.find('a').text.strip('\n')
-                    else:
-                        break
-            return self._get_category_from_name(descendant_name, parent_name, parent_parent_name)
+                    category_name = tag.find('a').text.strip('\n')
+                    if category_name.lower() != 'главная':
+                        category_names.append(category_name)
+            return self._get_category_from_name(category_names)
 
-    @staticmethod
-    def _get_category_from_name(name: str, parent: str, parent_parent: str) -> ItemCategory:
-        if name != '':
-            params = {'name': name.lower()}
-            if parent != '':
-                params['parent__name'] = parent.lower()
-                if parent_parent != '':
-                    params['parent__parent__name'] = parent_parent.lower()
-            try:
-                return ItemCategory.objects.get(**params)
-            except ItemCategory.DoesNotExist as e:
-                logger.error(f'Item Category does not exist: {e}')
+    def _get_category_from_name(self, category_names: List[str]) -> Union[ItemCategory, None]:
+        try:
+            all_category_candidates = ItemCategory.objects.select_related('parent').filter(name=category_names[-1])
+        except IndexError:
+            logger.error(f'No category name sent to get ItemCategory by name: {category_names}')
+            return None
+
+        num_categories = len(all_category_candidates)
+        if num_categories == 0:
+            logger.warning(f'Item Category for params: {category_names} does not exist')
+            return None
+        elif num_categories == 1:
+            return all_category_candidates[0]
         else:
-            logger.error(f'No category name sent to function: {name}, {parent}, {parent_parent}')
+            last_parent_ind = len(category_names)-2
+            while len(all_category_candidates) != 1:
+                if last_parent_ind < 0:
+                    logger.error(f'Something is wrong while getting categories {category_names}')
+                    return all_category_candidates[0]
 
-        # Consider catching Multiple Object Return Error
+                for item_category in all_category_candidates[:]:
+                    parent = self._get_parent_from_index(last_parent_ind, item_category,
+                                                         current_level=len(category_names)-2)
+                    if parent is not None and parent.name != category_names[last_parent_ind]:
+                        all_category_candidates.remove(item_category)
+                last_parent_ind -= 1
+
+            return all_category_candidates[0]
+
+    def _get_parent_from_index(self, last_parent_ind: int, item_category: ItemCategory,
+                               current_level) -> ItemCategory:
+        if current_level == last_parent_ind:
+            return item_category.parent
+        else:
+            return self._get_parent_from_index(last_parent_ind, item_category.parent, current_level-1)

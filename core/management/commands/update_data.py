@@ -46,7 +46,7 @@ class Command(BaseCommand):
                     wb_process_pool = WildberriesProcessPool(scraper, cpu_multiplayer=cpu_multiplayer)
                 else:
                     raise CommandError(f"Unrecognized type {action_type} for marketplace {mp}")
-                if cpu_multiplayer == 0:
+                if cpu_multiplayer == 0 or cpu_multiplayer is None:
                     wb_process_pool = None
                 self._start_worker(scraper, process_pool=wb_process_pool, source_file=source_file)
             else:
