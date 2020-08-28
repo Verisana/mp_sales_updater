@@ -38,9 +38,6 @@ class Connector:
             for i in range(self.try_count):
                 try:
                     response = self._send_request(request_info)
-                    if response.status_code == 500:
-                        logger.warning(f'500 response from site. Taking another attempt')
-                        continue
                 except requests.exceptions.RequestException as e:
                     logger.warning(f'Requests error: {e}')
                     continue
