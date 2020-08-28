@@ -17,5 +17,4 @@ RUN pip install -r requirements.txt
 COPY --chown=gr1902 . .
 RUN mkdir logs
 RUN ./manage.py makemigrations
-RUN ./manage.py migrate
 CMD ["./manage.py", "update_data", "wildberries", "items_in_category", "--cpu_multiplayer", "0"]
