@@ -448,7 +448,6 @@ class WildberriesIndividualItemCategoryScraper(WildberriesBaseScraper):
     @staticmethod
     def _check_parse_times():
         items = Item.objects.filter(items_start_parse_time__isnull=False)
-        current_time = now()
         for item in items:
             item.items_start_parse_time = None
         Item.objects.bulk_update(items, ['items_start_parse_time'])
@@ -457,6 +456,7 @@ class WildberriesIndividualItemCategoryScraper(WildberriesBaseScraper):
         start = time.time()
         connection.close()
         item = self._get_item_to_update()
+        logger.debug(f'Start update from mp for {item}')
         if item is not None:
             self._individual_item_update(item)
             logger.debug(f'Done in {time.time() - start:0.0f} seconds')
@@ -509,8 +509,8 @@ class WildberriesIndividualItemCategoryScraper(WildberriesBaseScraper):
 
     def _get_category_from_name(self, category_names: List[str]) -> Union[ItemCategory, None]:
         try:
-            all_category_candidates = ItemCategory.objects.select_related('parent').filter(
-                name=category_names[-1].lower())
+            all_category_candidates = list(ItemCategory.objects.select_related('parent').filter(
+                name=category_names[-1].lower()))
         except IndexError:
             logger.error(f'No category name sent to get ItemCategory by name: {category_names}')
             return None
