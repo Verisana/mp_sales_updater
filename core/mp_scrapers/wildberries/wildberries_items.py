@@ -451,7 +451,7 @@ class WildberriesIndividualItemCategoryScraper(WildberriesBaseScraper):
         current_time = now()
         for item in items:
             item.items_start_parse_time = None
-        ItemCategory.objects.bulk_update(items, ['items_start_parse_time'])
+        Item.objects.bulk_update(items, ['items_start_parse_time'])
 
     def update_from_mp(self, start_from: int = None) -> int:
         start = time.time()
