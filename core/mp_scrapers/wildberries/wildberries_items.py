@@ -456,6 +456,7 @@ class WildberriesIndividualItemCategoryScraper(WildberriesBaseScraper):
         start = time.time()
         connection.close()
         item = self._get_item_to_update()
+        # item = Item.objects.get(marketplace_id=1047)
         logger.debug(f'Start update from mp for {item}')
         if item is not None:
             self._individual_item_update(item)
@@ -502,18 +503,32 @@ class WildberriesIndividualItemCategoryScraper(WildberriesBaseScraper):
             category_names = []
             for tag in list_of_breadcrumbs.findAll('li', class_="breadcrumbs-item secondary"):
                 if 'brands' not in tag.find('a')['href']:
-                    category_name = tag.find('a').text.strip('\n')
+                    category_name = tag.find('a').text.strip('\n').lower()
                     if category_name.lower() != 'главная':
                         category_names.append(category_name)
             return self._get_category_from_name(category_names)
 
     def _get_category_from_name(self, category_names: List[str]) -> Union[ItemCategory, None]:
         try:
-            all_category_candidates = list(ItemCategory.objects.select_related('parent').filter(
-                name=category_names[-1].lower()))
+            all_category_candidates = ItemCategory.objects.select_related('parent').filter(
+                name=category_names[-1])
         except IndexError:
             logger.error(f'No category name sent to get ItemCategory by name: {category_names}')
             return None
+
+        if len(all_category_candidates) > 1:
+            last_parent_ind = len(category_names)-2
+            while len(all_category_candidates) != 1:
+                if last_parent_ind < 0:
+                    logger.error(f'Something is wrong while getting categories {category_names}')
+                    break
+
+                for item_category in all_category_candidates[:]:
+                    parent = self._get_parent_from_index(last_parent_ind, item_category,
+                                                         current_level=len(category_names)-1)
+                    if parent is not None and parent.name != category_names[last_parent_ind]:
+                        all_category_candidates = all_category_candidates.exclude(id=item_category.id)
+                last_parent_ind -= 1
 
         num_categories = len(all_category_candidates)
         if num_categories == 0:
@@ -522,24 +537,13 @@ class WildberriesIndividualItemCategoryScraper(WildberriesBaseScraper):
         elif num_categories == 1:
             return all_category_candidates[0]
         else:
-            last_parent_ind = len(category_names)-2
-            while len(all_category_candidates) != 1:
-                if last_parent_ind < 0:
-                    logger.error(f'Something is wrong while getting categories {category_names}')
-                    return all_category_candidates[0]
-
-                for item_category in all_category_candidates[:]:
-                    parent = self._get_parent_from_index(last_parent_ind, item_category,
-                                                         current_level=len(category_names)-2)
-                    if parent is not None and parent.name != category_names[last_parent_ind]:
-                        all_category_candidates.remove(item_category)
-                last_parent_ind -= 1
-
-            return all_category_candidates[0]
+            logger.error(f'This condition should not be reached: {category_names=}')
 
     def _get_parent_from_index(self, last_parent_ind: int, item_category: ItemCategory,
-                               current_level) -> ItemCategory:
+                               current_level) -> Union[ItemCategory, None]:
+        if item_category is None:
+            return None
         if current_level == last_parent_ind:
-            return item_category.parent
+            return item_category
         else:
             return self._get_parent_from_index(last_parent_ind, item_category.parent, current_level-1)

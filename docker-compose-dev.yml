@@ -1,14 +1,26 @@
 version: '3'
 services:
-  postgresql:
-    image: postgres:12
-    env_file:
-      - db.env
   mp_sales_updater:
+    image: gr1902/mp_sales_updater
     build:
       context: .
       dockerfile: Dockerfile.dev
     env_file:
       - .env
+    command: python manage.py runserver 0.0.0.0:8000
     volumes:
-      - /core/utils/webshare_proxies.txt:/core/utils/webshare_proxies.txt
+      - ./:/home/gr1902/mp_sales_updater
+    ports:
+      - 8000:8000
+    depends_on:
+      - db
+  db:
+    image: postgres:12
+    restart: always
+    volumes:
+      - postgres_data:/var/lib/postgresql/data/
+    env_file:
+      - db.env
+
+volumes:
+  postgres_data:
