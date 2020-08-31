@@ -1,5 +1,3 @@
-from datetime import timedelta
-
 from django.db import models
 from mptt.models import MPTTModel, TreeForeignKey
 
@@ -54,17 +52,13 @@ class Item(StandardFields):
     is_digital = models.BooleanField(default=False)
     is_adult = models.BooleanField(default=False)
 
-    items_parse_frequency = models.DurationField(default=timedelta(days=7))
     items_next_parse_time = models.DateTimeField(null=True, blank=True, db_index=True)
     items_start_parse_time = models.DateTimeField(null=True, blank=True, db_index=True)
 
-    revisions_parse_frequency = models.DurationField(default=timedelta(hours=24))
     revisions_next_parse_time = models.DateTimeField(null=True, blank=True, db_index=True)
     revisions_start_parse_time = models.DateTimeField(null=True, blank=True, db_index=True)
 
     is_deleted = models.BooleanField(default=False, db_index=True)
-
-    no_individual_category = models.BooleanField(default=False, db_index=True)
 
     def __str__(self):
         try:
@@ -88,11 +82,18 @@ class ItemRevision(StandardFields):
     sale_price = models.IntegerField()
     available_qty = models.IntegerField()
 
-    created_at = models.DateTimeField(auto_now_add=True)
-    modified_at = models.DateTimeField(auto_now=True)
+    def __str__(self):
+        return f'revision_{self.id} {self.item.name} ({self.item.marketplace_id})'
+
+
+class ItemPosition(StandardFields):
+    item = models.ForeignKey('Item', on_delete=models.PROTECT, related_name='item_positions')
+
+    position_num = models.IntegerField()
+    category = models.ForeignKey('ItemCategory', on_delete=models.PROTECT, related_name='item_positions')
 
     def __str__(self):
-        return 'Revision_' + str(self.id) + ' ' + self.item.name
+        return f'position_{self.id} {self.item.name} ({self.item.marketplace_id})'
 
 
 class ItemCategory(MPTTModel, StandardFields):
@@ -103,7 +104,6 @@ class ItemCategory(MPTTModel, StandardFields):
     is_deleted = models.BooleanField(default=False)
     marketplace_category_url = models.CharField(max_length=256, blank=True)
 
-    parse_frequency = models.DurationField(default=timedelta(days=7))
     next_parse_time = models.DateTimeField(null=True, blank=True)
     start_parse_time = models.DateTimeField(null=True, blank=True)
 
@@ -122,7 +122,6 @@ class Image(StandardFields):
     marketplace_link = models.CharField(max_length=256, unique=True, db_index=True)
     marketplace_source = models.ForeignKey('Marketplace', on_delete=models.PROTECT)
 
-    parse_frequency = models.DurationField(default=timedelta(days=7))
     next_parse_time = models.DateTimeField(null=True, blank=True, db_index=True)
     start_parse_time = models.DateTimeField(null=True, blank=True, db_index=True)
 

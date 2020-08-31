@@ -1,3 +1,4 @@
+from datetime import timedelta
 from typing import Dict, Any
 from dataclasses import dataclass
 
@@ -13,7 +14,10 @@ class ScraperConfigs:
     revision_url: str
     bulk_item_step: int
     use_proxy: bool
-    max_item_id: int
+    items_parse_frequency: timedelta
+    revisions_parse_frequency: timedelta
+    categories_parse_frequency: timedelta
+    images_parse_frequency: timedelta
 
 
 @dataclass

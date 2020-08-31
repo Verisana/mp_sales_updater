@@ -1,3 +1,5 @@
+from datetime import timedelta
+
 from core.types import ScraperConfigs
 
 
@@ -12,5 +14,8 @@ WILDBERRIES_CONFIG = ScraperConfigs(
     # Request size becomes too large to handle for big ids
     bulk_item_step=800,
     use_proxy=True,
-    max_item_id=14999999,
+    items_parse_frequency=timedelta(hours=24),
+    revisions_parse_frequency=timedelta(hours=3),
+    categories_parse_frequency=timedelta(days=14),
+    images_parse_frequency=timedelta(days=7),
 )
