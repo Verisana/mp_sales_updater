@@ -1,0 +1,27 @@
+version: '3.8'
+services:
+  mp_sales_updater:
+    image: gr1902/mp_sales_updater
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+    env_file:
+      - .env
+    command: /home/gr1902/mp_sales_updater/entrypoint.sh
+    volumes:
+      - ./:/home/gr1902/mp_sales_updater
+    ports:
+      - 8000:8000
+    depends_on:
+      - db
+    restart: always
+  db:
+    image: postgres:12
+    restart: always
+    volumes:
+      - postgres_data:/var/lib/postgresql/data/
+    env_file:
+      - .docker/db.env
+
+volumes:
+  postgres_data:

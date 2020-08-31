@@ -130,15 +130,14 @@ dmypy.json
 .pyre/
 
 .idea/
-/sensitive_info.txt
+sensitive_info.txt
 /core/utils/webshare_proxies.txt
 /media
 /logs/
-/initial_setup_do.sh
-/fabric_deploy_util.py
 /static
 
 .gitignore
 .git
 README.md
-/db.env
+.docker/db.env
+.scripts/
