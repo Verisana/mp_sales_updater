@@ -42,18 +42,20 @@ class WildberriesRevisionScraper(WildberriesBaseScraper):
             return -1
 
         self._execute_revision_update(checked_items, items_info)
-        logger.debug(f'Done in {time.time() - start:0.0f} seconds')
+        logger.debug(f'Revision update done in {time.time() - start:0.2f} sec.')
         return 0
 
     @staticmethod
     def check_wb_result_fullness(items_info: List[Dict], marketplace_ids: List[int]) -> None:
         assert len(items_info) == len(marketplace_ids)
+        items_info.sort(key=lambda x: x['id'])
+        marketplace_ids.sort()
         for item_info, marketplace_id in zip(items_info, marketplace_ids):
             assert item_info['id'] == marketplace_id
 
     def _execute_revision_update(self, items: List[Item], items_info: List[Dict]) -> None:
-        new_revisions = self._create_new_revisions(items_info, items)
-        self._set_new_revisions_to_items(items, new_revisions)
+        new_revisions = self._create_new_revisions(items, items_info)
+        self._update_revision_times(items, new_revisions)
 
     def _get_items_to_update(self) -> Tuple[List[Item], List[int]]:
         with transaction.atomic():
@@ -88,7 +90,7 @@ class WildberriesRevisionScraper(WildberriesBaseScraper):
         else:
             logger.error(f'Expected valid state from items_info {json_result}')
 
-    def _create_new_revisions(self, items_info: List[Dict], items: List[Item]) -> List[ItemRevision]:
+    def _create_new_revisions(self, items: List[Item], items_info: List[Dict]) -> List[ItemRevision]:
         new_revisions = []
         assert len(items_info) == len(items)
         for item_info, item in zip(items_info, items):
@@ -110,7 +112,7 @@ class WildberriesRevisionScraper(WildberriesBaseScraper):
                 result += stock['qty']
         return result
 
-    def _set_new_revisions_to_items(self, items: List[Item], new_revisions: List[ItemRevision]) -> None:
+    def _update_revision_times(self, items: List[Item], new_revisions: List[ItemRevision]) -> None:
         items_to_update = []
         assert len(new_revisions) == len(items)
         for revision, item in zip(new_revisions, items):

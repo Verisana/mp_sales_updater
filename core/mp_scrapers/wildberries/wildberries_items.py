@@ -39,7 +39,7 @@ class WildberriesItemBase(WildberriesBaseScraper):
             indices_joined = ';'.join(map(str, indices))
             url = self.config.items_api_url.format(indices_joined)
             headers = None
-        elif type_info == ' sellers':
+        elif type_info == 'sellers':
             indices_joined = ','.join(map(str, indices))
             url = self.config.seller_url.format(indices_joined)
             headers = self.xmlhttp_header
@@ -66,6 +66,8 @@ class WildberriesItemBase(WildberriesBaseScraper):
 
         current_time = now()
         new_items, old_items, colours = [], [], []
+        fields_to_update = ['name', 'size_name', 'size_orig_name']
+
         for item in items_info:
             create_params = {'name': item['name'], 'marketplace_id': item['marketplace_id'],
                              'marketplace_source': self.marketplace_source, 'root_id': item['root_id'],
@@ -77,6 +79,7 @@ class WildberriesItemBase(WildberriesBaseScraper):
 
             try:
                 existing_item = Item.objects.get(**get_params)
+                self._update_existing_item(existing_item, item, fields_to_update)
                 old_items.append(existing_item)
             except Item.DoesNotExist:
                 new_item = Item(**create_params)
@@ -90,12 +93,15 @@ class WildberriesItemBase(WildberriesBaseScraper):
                 else:
                     colours[-1].append(item['colour'].pk)
             except Item.MultipleObjectsReturned:
-                logger.warning(f'Something is wrong. You should get one object for params: {get_params}')
+                logger.error(f'Something is wrong. You should get one object for params: {get_params}')
                 existing_items = Item.objects.filter(**get_params)
                 old_items.append(existing_items[0])
                 for duplicate_item in existing_items[1:]:
                     duplicate_item.delete()
                 continue
+
+        if old_items:
+            Item.objects.bulk_update(old_items, fields_to_update)
 
         if new_items:
             with transaction.atomic():
@@ -195,6 +201,11 @@ class WildberriesItemBase(WildberriesBaseScraper):
             for i in idxs:
                 items_info[i][model_name] = model
 
+    @staticmethod
+    def _update_existing_item(item: Item, item_info: Dict, fields_to_update: List[str]) -> None:
+        for field in fields_to_update:
+            item.__setattr__(field, item_info.get(field))
+
 
 class WildberriesItemScraper(WildberriesItemBase):
     def __init__(self):
@@ -244,6 +255,7 @@ class WildberriesItemScraper(WildberriesItemBase):
     def _process_all_pages(self, category: ItemCategory):
         counter = 1
         while True:
+            start = time.time()
             page_num = f'?page={counter}'
             bs, _, status_code = self.connector.get_page(RequestBody(category.marketplace_category_url + page_num,
                                                                      'get'))
@@ -256,8 +268,8 @@ class WildberriesItemScraper(WildberriesItemBase):
                 category.save()
                 break
             else:
-                logger.debug(f'\tPage number {counter} for {category}')
                 self._process_items_on_page(bs, category, counter-1)
+            logger.debug(f'\tPage number {counter} for {category} done in {time.time()-start:0.2f} sec.')
             counter += 1
 
     @staticmethod
@@ -289,10 +301,7 @@ class WildberriesItemScraper(WildberriesItemBase):
         full_items = self.add_items_to_db(full_items_info)
         self._add_category_and_imgs(full_items, category, img_id_to_objs)
 
-        start = time.time()
         self.revision_scraper.update_from_args(full_items, full_items_info)
-        logger.debug(f'\tTime for revisions update is {time.time()-start:0.2f} sec.')
-
         self._create_positions(item_ids, category, page_num)
 
     def _extract_info_from_page(self, all_items: List[Tag]) -> Tuple[List[int], Dict[int, Image], Dict[str, int]]:
