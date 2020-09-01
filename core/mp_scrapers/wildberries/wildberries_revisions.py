@@ -33,22 +33,22 @@ class WildberriesRevisionScraper(WildberriesBaseScraper):
         start = time.time()
         connection.close()
 
-        checked_items = []
-        for item in items:
+        checked_items, checked_info = [], []
+        for item, item_info in zip(items, items_info):
             if item.revisions_next_parse_time <= now():
                 checked_items.append(item)
+                checked_info.append(item_info)
 
         if len(checked_items) == 0:
             return -1
 
-        self._execute_revision_update(checked_items, items_info)
+        self._execute_revision_update(checked_items, checked_info)
         logger.debug(f'Revision update done in {time.time() - start:0.2f} sec.')
         return 0
 
     @staticmethod
     def check_wb_result_fullness(items_info: List[Dict], marketplace_ids: List[int]) -> None:
         assert len(items_info) == len(marketplace_ids)
-        items_info.sort(key=lambda x: x['id'])
         marketplace_ids.sort()
         for item_info, marketplace_id in zip(items_info, marketplace_ids):
             assert item_info['id'] == marketplace_id
