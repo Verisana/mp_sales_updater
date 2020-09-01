@@ -1,6 +1,6 @@
 version: '3'
 services:
-  mp_sales_updater:
+  django:
     image: gr1902/mp_sales_updater
     build:
       context: .
