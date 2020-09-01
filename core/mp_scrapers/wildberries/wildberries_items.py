@@ -263,8 +263,7 @@ class WildberriesItemScraper(WildberriesItemBase):
                 category.save()
                 return category
 
-    def _process_all_pages(self, category: ItemCategory):
-        counter = 1
+    def _process_all_pages(self, category: ItemCategory, counter: int = 1, debug: bool = False):
         while True:
             start = time.time()
             page_num = f'?page={counter}'
@@ -273,18 +272,27 @@ class WildberriesItemScraper(WildberriesItemBase):
             if status_code not in [200, 404]:
                 logger.warning(f'Bad response for {category} from marketplace. Try one more time')
                 continue
-            if status_code == 404 or self._is_items_not_found(bs, category):
+            is_no_items = self._is_items_not_found(bs, category, status_code)
+            if status_code == 404 or is_no_items:
                 category.next_parse_time = now() + self.config.items_parse_frequency
                 category.start_parse_time = None
+                if is_no_items:
+                    category.marketplace_items_in_category = 0
                 category.save()
                 break
             else:
+                self._update_num_items_in_category(bs, category)
                 self._process_items_on_page(bs, category, counter-1)
             logger.debug(f'\tPage number {counter} for {category} done in {time.time()-start:0.2f} sec.')
             counter += 1
+            if debug:
+                break
 
     @staticmethod
-    def _is_items_not_found(bs: BeautifulSoup, category: ItemCategory) -> bool:
+    def _is_items_not_found(bs: BeautifulSoup, category: ItemCategory, status_code: int) -> bool:
+        if status_code == 404:
+            return False
+
         all_items = bs.find('div', class_='catalog_main_table')
         if all_items is None:
             all_items = bs.find('div', id='divGoodsNotFound')
@@ -299,6 +307,17 @@ class WildberriesItemScraper(WildberriesItemBase):
             return True
         else:
             return False
+
+    @staticmethod
+    def _update_num_items_in_category(bs: BeautifulSoup, category: ItemCategory):
+        num_tag = bs.findAll('span', class_='goods-count')
+        if len(num_tag) == 1:
+            # Just parsing number in tag
+            num_tag = int(num_tag[0].text.strip('\n').strip(' ').split(' ')[0])
+            category.marketplace_items_in_category = num_tag
+            category.save()
+        else:
+            logger.error(f'Something is wrong while getting goods count {num_tag}')
 
     def _process_items_on_page(self, bs: BeautifulSoup, category: ItemCategory, page_num: int):
         all_items = bs.find('div', class_='catalog_main_table').findAll('div', class_='dtList')
