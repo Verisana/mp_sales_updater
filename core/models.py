@@ -103,6 +103,7 @@ class ItemCategory(MPTTModel, StandardFields):
     marketplace_id = models.IntegerField(blank=True, null=True)
     is_deleted = models.BooleanField(default=False)
     marketplace_category_url = models.CharField(max_length=256, blank=True)
+    marketplace_items_in_category = models.IntegerField(default=0)
 
     next_parse_time = models.DateTimeField(null=True, blank=True)
     start_parse_time = models.DateTimeField(null=True, blank=True)
