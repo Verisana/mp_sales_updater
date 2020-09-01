@@ -4,8 +4,7 @@ from django.core.management.base import BaseCommand, CommandError
 
 from core.mp_scrapers.wildberries.wildberries_categories import WildberriesCategoryScraper
 from core.mp_scrapers.wildberries.wildberries_images import WildberriesImageScraper
-from core.mp_scrapers.wildberries.wildberries_items import WildberriesIndividualItemCategoryScraper, \
-    WildberriesIncrementItemScraper, WildberriesItemInCategoryScraper, IncrementItemUpdaterProcessPool
+from core.mp_scrapers.wildberries.wildberries_items import WildberriesItemScraper
 from core.mp_scrapers.wildberries.wildberries_revisions import WildberriesRevisionScraper
 from core.mp_scrapers.wildberries.wildberries_base import WildberriesProcessPool, WildberriesBaseScraper
 from core.utils.logging_helpers import get_logger
@@ -29,14 +28,8 @@ class Command(BaseCommand):
                 wb_process_pool = None
                 if action_type == 'categories':
                     scraper = WildberriesCategoryScraper()
-                elif action_type == 'items_increment':
-                    scraper = WildberriesIncrementItemScraper()
-                    wb_process_pool = IncrementItemUpdaterProcessPool(scraper, cpu_multiplayer=cpu_multiplayer)
-                elif action_type == 'items_in_category':
-                    scraper = WildberriesItemInCategoryScraper()
-                    wb_process_pool = WildberriesProcessPool(scraper, cpu_multiplayer=cpu_multiplayer)
-                elif action_type == 'items_individual_category':
-                    scraper = WildberriesIndividualItemCategoryScraper()
+                elif action_type == 'items':
+                    scraper = WildberriesItemScraper()
                     wb_process_pool = WildberriesProcessPool(scraper, cpu_multiplayer=cpu_multiplayer)
                 elif action_type == 'revisions':
                     scraper = WildberriesRevisionScraper()

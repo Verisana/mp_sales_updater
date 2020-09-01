@@ -18,4 +18,5 @@ WILDBERRIES_CONFIG = ScraperConfigs(
     revisions_parse_frequency=timedelta(hours=3),
     categories_parse_frequency=timedelta(days=14),
     images_parse_frequency=timedelta(days=7),
+    items_per_page=100,
 )
