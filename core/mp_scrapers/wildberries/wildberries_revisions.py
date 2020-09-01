@@ -1,3 +1,4 @@
+import asyncio
 import time
 from typing import List, Dict, Tuple
 
@@ -77,7 +78,7 @@ class WildberriesRevisionScraper(WildberriesBaseScraper):
 
         str_idxs = ';'.join(map(str, indices))
         url = self.config.items_api_url.format(str_idxs)
-        json_result, *_ = self.connector.get_page(RequestBody(url, method='get', parsing_type='json'))
+        json_result, *_ = asyncio.run(self.connector.get_page(RequestBody(url, method='get', parsing_type='json')))
 
         if json_result['state'] == 0:
             items_info = json_result['data']['products']

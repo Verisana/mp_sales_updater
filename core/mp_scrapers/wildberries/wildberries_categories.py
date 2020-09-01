@@ -1,3 +1,4 @@
+import asyncio
 import pickle
 import re
 from typing import List
@@ -29,8 +30,8 @@ class WildberriesCategoryScraper(WildberriesBaseScraper):
 
     def update_from_mp(self, start_from: int = None) -> int:
         logger.info(f'Started parsing categories from marketplace')
-        bs, is_captcha, _ = self.connector.get_page(RequestBody(self.config.base_categories_url, 'get',
-                                                                headers=self.all_categories_headers))
+        bs, is_captcha, _ = asyncio.run(self.connector.get_page(RequestBody(self.config.base_categories_url, 'get',
+                                                                            headers=self.all_categories_headers)))
         try:
             parsed_nodes = self._parse_bs_response(bs)
         except KeyboardInterrupt:
@@ -95,7 +96,8 @@ class WildberriesCategoryScraper(WildberriesBaseScraper):
                     logger.debug('\t'+message)
             # Прям до сюда
 
-            descendants_bs, is_captcha, _ = self.connector.get_page(RequestBody(node.marketplace_url, 'get'))
+            descendants_bs, is_captcha, _ = asyncio.run(self.connector.get_page(
+                RequestBody(node.marketplace_url, 'get')))
 
             if level == 0:
                 all_items = self._extract_catalogs_from_root(descendants_bs)
