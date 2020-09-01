@@ -65,10 +65,11 @@ class WildberriesItemBase(WildberriesBaseScraper):
         self._fill_nones_in_items(seller_id_to_idx, items_info, Seller, 'seller', 'name')
 
         current_time = now()
-        new_items, old_items, colours = [], [], []
+        new_items, old_items, colours_old_items, colours_new_items = [], [], [], []
         fields_to_update = ['name', 'size_name', 'size_orig_name']
 
-        for item in items_info:
+        last_marketplace_id = 0
+        for i, item in enumerate(items_info):
             create_params = {'name': item['name'], 'marketplace_id': item['marketplace_id'],
                              'marketplace_source': self.marketplace_source, 'root_id': item['root_id'],
                              'brand': item['brand'], 'size_name': item['size_name'],
@@ -76,40 +77,41 @@ class WildberriesItemBase(WildberriesBaseScraper):
                              'revisions_next_parse_time': current_time, 'is_digital': item['is_digital'],
                              'is_adult': item['is_adult']}
             get_params = {'marketplace_id': item['marketplace_id'], 'marketplace_source': self.marketplace_source}
-
+            if i > 0:
+                last_marketplace_id = items_info[i-1]['marketplace_id']
             try:
                 existing_item = Item.objects.get(**get_params)
-                self._update_existing_item(existing_item, item, fields_to_update)
-                old_items.append(existing_item)
             except Item.DoesNotExist:
                 new_item = Item(**create_params)
-                try:
-                    last_marketplace_id = new_items[-1].marketplace_id
-                except IndexError:
-                    last_marketplace_id = None
-                if last_marketplace_id != new_item.marketplace_id:
-                    new_items.append(new_item)
-                    colours.append([item['colour'].pk])
-                else:
-                    colours[-1].append(item['colour'].pk)
+                self._add_item_and_fill_colours(new_items, colours_new_items, last_marketplace_id, new_item,
+                                                item['colour'].pk)
+                continue
             except Item.MultipleObjectsReturned:
                 logger.error(f'Something is wrong. You should get one object for params: {get_params}')
                 existing_items = Item.objects.filter(**get_params)
-                old_items.append(existing_items[0])
+                existing_item = existing_items[0]
                 for duplicate_item in existing_items[1:]:
                     duplicate_item.delete()
-                continue
 
+            self._update_existing_item(existing_item, item, fields_to_update)
+            self._add_item_and_fill_colours(old_items, colours_old_items,
+                                            last_marketplace_id, existing_item, item['colour'].pk)
         if old_items:
-            Item.objects.bulk_update(old_items, fields_to_update)
+            with transaction.atomic():
+                Item.objects.bulk_update(old_items, fields_to_update)
+                for old_item, colour_pks in zip(old_items, colours_old_items):
+                    old_item.colours.add(*colour_pks)
 
         if new_items:
             with transaction.atomic():
                 new_items = Item.objects.bulk_create(new_items)
-                for new_item, colour_pks in zip(new_items, colours):
+                for new_item, colour_pks in zip(new_items, colours_new_items):
                     new_item.colours.add(*colour_pks)
 
-        return old_items + new_items
+        all_items = old_items + new_items
+        if len(all_items) > 0:
+            all_items.sort(key=lambda x: x.marketplace_id)
+        return all_items
 
     @staticmethod
     def _is_valid_result(json_result: Dict) -> bool:
@@ -205,6 +207,15 @@ class WildberriesItemBase(WildberriesBaseScraper):
     def _update_existing_item(item: Item, item_info: Dict, fields_to_update: List[str]) -> None:
         for field in fields_to_update:
             item.__setattr__(field, item_info.get(field))
+
+    @staticmethod
+    def _add_item_and_fill_colours(items: List[Item], colours: List[List[int]],
+                                   last_mp_id: int, item: Item, colour_pk: int):
+        if last_mp_id != item.marketplace_id:
+            items.append(item)
+            colours.append([colour_pk])
+        else:
+            colours[-1].append(colour_pk)
 
 
 class WildberriesItemScraper(WildberriesItemBase):
@@ -345,19 +356,23 @@ class WildberriesItemScraper(WildberriesItemBase):
         items_result = self.get_api_info(item_ids, type_info='items')
         sellers_result = self.get_api_info(item_ids, type_info='sellers')
 
+        result = []
         if items_result['state'] == 0 and sellers_result['resultState'] == 0 and items_result['data']['products']:
             seller_id_to_name = {i['cod1S']: i['supplierName'] for i in sellers_result['value']}
             for item in items_result['data']['products']:
                 item['sellerName'] = seller_id_to_name.get(item['id'])
-            return items_result['data']['products']
+            result = items_result['data']['products']
         elif items_result['state'] == 0 and items_result['data']['products']:
             logger.warning(f'Error result in {item_ids}: {sellers_result}')
-            return items_result['data']['products']
+            result = items_result['data']['products']
         elif items_result['state'] == 0 and not items_result['data']['products']:
             logger.info(f'Items response is empty: {items_result}')
         else:
             logger.warning(f'Error result in {item_ids}: {items_result}')
-        return []
+
+        if len(result) > 0:
+            result.sort(key=lambda x: x['id'])
+        return result
 
     @staticmethod
     def _add_category_and_imgs(items: List[Item], category_leaf: ItemCategory,

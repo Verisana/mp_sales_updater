@@ -70,4 +70,8 @@ class Command(BaseCommand):
             if source_file:
                 scraper.update_from_file(source_file)
             else:
-                scraper.update_from_mp()
+                while True:
+                    result = scraper.update_from_mp()
+                    if result == -1:
+                        logger.info(f'Multiprocessing pool stopping. Got result code -1')
+                        break
