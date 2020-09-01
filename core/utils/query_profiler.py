@@ -9,7 +9,7 @@ def start_profiler():
     scraper = WildberriesItemScraper()
     category = ItemCategory.objects.get(id=17674)
     with QueryProfiler(QueryProfilerLevel.QUERY_SIGNATURE) as qp:
-        scraper._process_all_pages(category, counter=75, debug=True)
+        scraper._process_all_pages(category, counter=77, debug=True)
 
     print(qp.query_profiled_data.summary)
     print('\n')

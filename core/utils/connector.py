@@ -1,9 +1,8 @@
 import json
-import codecs
 from typing import Union, Dict, Tuple
 
+import aiohttp
 import requests
-from requests.models import Response
 from bs4 import BeautifulSoup
 
 from core.types import RequestBody
@@ -32,53 +31,59 @@ class Connector:
                 return True
         return False
 
-    def get_page(self, request_info: RequestBody) -> Union[Tuple[BeautifulSoup, bool, int], Tuple[Dict, bool, int],
-                                                           Tuple[None, None, None], Tuple[bytes, None, int]]:
-        while True:
-            for i in range(self.try_count):
-                try:
-                    response = self._send_request(request_info)
-                except requests.exceptions.RequestException as e:
-                    logger.warning(f'Requests error: {e}')
-                    continue
-
-                is_captcha = False
-                if request_info.parsing_type == 'bs':
-                    bs, is_captcha = self._parse_to_bs(response, request_info)
-                    return bs, is_captcha, response.status_code
-                elif request_info.parsing_type == 'json':
+    async def get_page(self, request_info: RequestBody) -> Union[Tuple[BeautifulSoup, bool, int],
+                                                                 Tuple[Dict, bool, int],
+                                                                 Tuple[None, None, None], Tuple[bytes, None, int]]:
+        async with aiohttp.ClientSession() as session:
+            while True:
+                for i in range(self.try_count):
                     try:
-                        json_result = self._parse_to_json(response)
-                        return json_result, is_captcha, response.status_code
-                    except json.JSONDecodeError as e:
-                        logger.warning(
-                            f'JSONDecoderError: {e.msg}')
-                elif request_info.parsing_type == 'image':
-                    return response.content, None, response.status_code
-                else:
-                    logger.warning('Unrecognized type of parsing')
-            logger.error(f"All attempts to connect for {request_info.url[:120]} and {request_info.url[-10:]} "
-                         f"have been used. Trying another {self.try_count} attempts")
+                        response = await self._send_request(request_info, session)
+                    except requests.exceptions.RequestException as e:
+                        logger.warning(f'Requests error: {e}')
+                        continue
 
-    def _parse_to_bs(self, response: Response, request_info: RequestBody) -> (BeautifulSoup, bool):
-        bs = BeautifulSoup(response.content, 'lxml')
+                    is_captcha = False
+                    if request_info.parsing_type == 'bs':
+                        content = await response.content.read()
+                        bs, is_captcha = self._parse_to_bs(content, request_info)
+                        return bs, is_captcha, response.status
+                    elif request_info.parsing_type == 'json':
+                        try:
+                            json_result = await self._parse_to_json(response)
+                            return json_result, is_captcha, response.status
+                        except json.JSONDecodeError as e:
+                            logger.warning(
+                                f'JSONDecoderError: {e.msg}')
+                    elif request_info.parsing_type == 'image':
+                        content = await response.content.read()
+                        return content, None, response.status
+                    else:
+                        logger.warning('Unrecognized type of parsing')
+                logger.error(f"All attempts to connect for {request_info.url[:120]} and {request_info.url[-10:]} "
+                             f"have been used. Trying another {self.try_count} attempts")
+
+    def _parse_to_bs(self, content: bytes, request_info: RequestBody) -> (BeautifulSoup, bool):
+        bs = BeautifulSoup(content, 'lxml')
 
         is_captcha = self.is_captcha_checker(bs)
         logger.error(f'Captcha is found in {request_info}') if is_captcha else None
         return bs, is_captcha
 
     @staticmethod
-    def _parse_to_json(response: Response) -> Dict:
+    async def _parse_to_json(response: aiohttp.ClientResponse) -> Dict:
         try:
-            return response.json()
+            parsed_json = await response.json()
+            return parsed_json
         except json.JSONDecodeError as e:
             if e.msg.startswith('Unexpected UTF-8 BOM'):
-                return json.loads(response.text.encode().decode('utf-8-sig'))
+                text = await response.text()
+                return json.loads(text.encode().decode('utf-8-sig'))
             else:
                 raise e
 
-    def _send_request(self, request_info: RequestBody) -> Response:
+    async def _send_request(self, request_info: RequestBody, session: aiohttp.ClientSession) -> aiohttp.ClientResponse:
         proxies = self.pm.get_proxy() if self.use_proxy else None
-        response = requests.request(request_info.method, request_info.url, headers=request_info.headers,
-                                    proxies=proxies, params=request_info.params)
+        response = await session.request(method=request_info.method, url=request_info.url, headers=request_info.headers,
+                                         proxy=proxies['http'], params=request_info.params)
         return response

@@ -1,3 +1,4 @@
+import asyncio
 import multiprocessing
 import time
 from collections import defaultdict
@@ -33,7 +34,7 @@ class WildberriesItemBase(WildberriesBaseScraper):
     def update_from_mp(self, start_from: int = None) -> int:
         raise NotImplementedError
 
-    def get_api_info(self, indices: List[int], type_info: str = 'items') -> Dict:
+    async def get_api_info(self, indices: List[int], type_info: str = 'items') -> Dict:
         counter = 0
         if type_info == 'items':
             indices_joined = ';'.join(map(str, indices))
@@ -48,8 +49,8 @@ class WildberriesItemBase(WildberriesBaseScraper):
             raise SalesUpdaterError
         while True:
             counter += 1
-            json_result, _, _ = self.connector.get_page(RequestBody(url,
-                                                        method='get', parsing_type='json', headers=headers))
+            json_result, _, _ = await self.connector.get_page(RequestBody(url, method='get',
+                                                              parsing_type='json', headers=headers))
             if self._is_valid_result(json_result):
                 return json_result
             elif counter > 5:
@@ -267,8 +268,8 @@ class WildberriesItemScraper(WildberriesItemBase):
         while True:
             start = time.time()
             page_num = f'?page={counter}'
-            bs, _, status_code = self.connector.get_page(RequestBody(category.marketplace_category_url + page_num,
-                                                                     'get'))
+            bs, _, status_code = asyncio.run(self.connector.get_page(RequestBody(
+                category.marketplace_category_url + page_num, 'get')))
             if status_code not in [200, 404]:
                 logger.warning(f'Bad response for {category} from marketplace. Try one more time')
                 continue
@@ -325,7 +326,8 @@ class WildberriesItemScraper(WildberriesItemBase):
 
         self._create_or_update_imgs(img_link_to_ids, img_id_to_objs)
 
-        full_items_info = self._get_full_api_info(item_ids)
+        full_items_info = asyncio.run(self._get_full_api_info(item_ids))
+
         self.revision_scraper.check_wb_result_fullness(full_items_info, item_ids)
 
         full_items = self.add_items_to_db(full_items_info)
@@ -371,9 +373,11 @@ class WildberriesItemScraper(WildberriesItemBase):
             item_id = img_link_to_ids[new_img.marketplace_link]
             img_id_to_objs[item_id] = new_img
 
-    def _get_full_api_info(self, item_ids: List[int]) -> List[Dict]:
-        items_result = self.get_api_info(item_ids, type_info='items')
-        sellers_result = self.get_api_info(item_ids, type_info='sellers')
+    async def _get_full_api_info(self, item_ids: List[int]) -> List[Dict]:
+        items_coroutine = self.get_api_info(item_ids, type_info='items')
+        sellers_coroutine = self.get_api_info(item_ids, type_info='sellers')
+
+        items_result, sellers_result = await asyncio.gather(items_coroutine, sellers_coroutine)
 
         result = []
         if items_result['state'] == 0 and sellers_result['resultState'] == 0 and items_result['data']['products']:
