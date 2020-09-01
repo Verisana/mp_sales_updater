@@ -6,13 +6,14 @@ from typing import List, Dict, Tuple, Set, Union, Any, Callable
 from bs4 import BeautifulSoup
 from bs4.element import Tag
 from django.db import connection, transaction
-from django.db.models import Max, Q
+from django.db.models import Q
 from django.db.models.base import ModelBase
 from django.utils.timezone import now
 
 from core.exceptions import SalesUpdaterError
-from core.models import ItemCategory, Item, Brand, Colour, Image, Seller
-from core.mp_scrapers.wildberries.wildberries_base import WildberriesBaseScraper, WildberriesProcessPool
+from core.models import ItemCategory, Item, Brand, Colour, Image, Seller, ItemPosition
+from core.mp_scrapers.wildberries.wildberries_base import WildberriesBaseScraper
+from core.mp_scrapers.wildberries.wildberries_revisions import WildberriesRevisionScraper
 from core.types import RequestBody
 from core.utils.logging_helpers import get_logger
 
@@ -32,11 +33,19 @@ class WildberriesItemBase(WildberriesBaseScraper):
     def update_from_mp(self, start_from: int = None) -> int:
         raise NotImplementedError
 
-    def get_item_or_seller_info(self, indices: List[int], url: str, sep: str, is_special_header: bool = False) -> Dict:
+    def get_api_info(self, indices: List[int], type_info: str = 'items') -> Dict:
         counter = 0
-        indices_joined = sep.join(map(str, indices))
-        url = url.format(indices_joined)
-        headers = self.xmlhttp_header if is_special_header else None
+        if type_info == 'items':
+            indices_joined = ';'.join(map(str, indices))
+            url = self.config.items_api_url.format(indices_joined)
+            headers = None
+        elif type_info == ' sellers':
+            indices_joined = ','.join(map(str, indices))
+            url = self.config.seller_url.format(indices_joined)
+            headers = self.xmlhttp_header
+        else:
+            logger.error(f'Type info {type_info} can not be recognized. Check function calls')
+            raise SalesUpdaterError
         while True:
             counter += 1
             json_result, _, _ = self.connector.get_page(RequestBody(url,
@@ -45,7 +54,7 @@ class WildberriesItemBase(WildberriesBaseScraper):
                 return json_result
             elif counter > 5:
                 logger.warning(f"Could not get SuppliersName for all requested items "
-                               f"from {indices[0]} to {indices[-1]}")
+                               f"for {indices}")
                 return json_result
 
     def add_items_to_db(self, items: List[Dict]) -> List[Item]:
@@ -187,91 +196,126 @@ class WildberriesItemBase(WildberriesBaseScraper):
                 items_info[i][model_name] = model
 
 
-class WildberriesItemInCategoryScraper(WildberriesItemBase):
+class WildberriesItemScraper(WildberriesItemBase):
     def __init__(self):
         super().__init__()
         logger.debug(f'Start check parse times')
         self._check_parse_times()
         logger.debug(f'Stop check parse times')
         self.lock = multiprocessing.Manager().Lock()
+        self.revision_scraper = WildberriesRevisionScraper()
 
     @staticmethod
     def _check_parse_times():
-        leaves = ItemCategory.objects.filter(Q(start_parse_time__isnull=False) | Q(next_parse_time__isnull=True),
-                                             children__isnull=True)
+        categories = ItemCategory.objects.filter(Q(start_parse_time__isnull=False) | Q(next_parse_time__isnull=True))
         current_time = now()
-        for leaf in leaves:
-            leaf.start_parse_time = None
-            leaf.next_parse_time = current_time
-        ItemCategory.objects.bulk_update(leaves, ['start_parse_time', 'next_parse_time'])
+        for category in categories:
+            category.start_parse_time = None
+            category.next_parse_time = current_time
+        ItemCategory.objects.bulk_update(categories, ['start_parse_time', 'next_parse_time'])
 
     def update_from_mp(self, start_from: int = None) -> int:
         start = time.time()
         connection.close()
-        category_leaf = self._get_category_leave()
-        if category_leaf is None:
+        category = self._get_category()
+        if category is None:
             return -1
-        logger.debug(f'Start update from mp for {category_leaf}')
-        self._process_all_pages(category_leaf)
-        logger.info(f'{category_leaf} elapsed {(time.time() - start):0.0f} seconds')
+        logger.debug(f'Start update from mp for {category}')
+        self._process_all_pages(category)
+        logger.info(f'{category} elapsed {(time.time() - start):0.0f} seconds')
         return 0
 
-    def _get_category_leave(self) -> ItemCategory:
+    def _get_category(self) -> ItemCategory:
         with transaction.atomic():
             start = time.time()
-            num_items = ItemCategory.objects.exclude(children__isnull=False).filter(
+            num_items = ItemCategory.objects.filter(
                 marketplace_source=self.marketplace_source, is_deleted=False,
                 start_parse_time__isnull=True, next_parse_time__lte=now()).count()
             logger.debug(f'Remained {num_items} operation elapsed {time.time()-start:0.2f}')
 
-            leaf = ItemCategory.objects.select_for_update(skip_locked=True).exclude(children__isnull=False).filter(
+            category = ItemCategory.objects.select_for_update(skip_locked=True).exclude(children__isnull=False).filter(
                 marketplace_source=self.marketplace_source, is_deleted=False,
                 start_parse_time__isnull=True, next_parse_time__lte=now()).first()
-            if leaf is not None:
-                leaf.start_parse_time = now()
-                leaf.save()
-                return leaf
+            if category is not None:
+                category.start_parse_time = now()
+                category.save()
+                return category
 
-    def _process_all_pages(self, category_leaf: ItemCategory):
+    def _process_all_pages(self, category: ItemCategory):
         counter = 1
         while True:
             page_num = f'?page={counter}'
-            bs, _, status_code = self.connector.get_page(RequestBody(category_leaf.marketplace_category_url + page_num,
+            bs, _, status_code = self.connector.get_page(RequestBody(category.marketplace_category_url + page_num,
                                                                      'get'))
             if status_code not in [200, 404]:
-                logger.warning(f'Bad response for {category_leaf} from marketplace. Try one more time')
+                logger.warning(f'Bad response for {category} from marketplace. Try one more time')
                 continue
-            if status_code == 404 or self._is_items_not_found(bs, category_leaf):
-                category_leaf.next_parse_time = now() + category_leaf.parse_frequency
-                category_leaf.start_parse_time = None
-                category_leaf.save()
+            if status_code == 404 or self._is_items_not_found(bs, category):
+                category.next_parse_time = now() + self.config.items_parse_frequency
+                category.start_parse_time = None
+                category.save()
                 break
             else:
-                logger.debug(f'\tPage number {counter} for {category_leaf}')
-                self._process_items_on_page(bs, category_leaf)
+                logger.debug(f'\tPage number {counter} for {category}')
+                self._process_items_on_page(bs, category, counter-1)
             counter += 1
 
     @staticmethod
-    def _is_items_not_found(bs: BeautifulSoup, category_leaf: ItemCategory) -> bool:
+    def _is_items_not_found(bs: BeautifulSoup, category: ItemCategory) -> bool:
         all_items = bs.find('div', class_='catalog_main_table')
         if all_items is None:
             all_items = bs.find('div', id='divGoodsNotFound')
             if all_items is not None:
-                logger.info(f'Empty category {category_leaf}')
+                logger.info(f'Empty category {category}')
             else:
-                with open(f'logs/bs_{category_leaf}.txt', 'w') as file:
+                with open(f'logs/bs_{category}.txt', 'w') as file:
                     file.write(bs.prettify())
-                logger.error(f'Something is wrong while getting divGoodsNotFound for {category_leaf}. '
+                logger.error(f'Something is wrong while getting divGoodsNotFound for {category}. '
                              f'Beautiful Soup response has been saved')
                 raise SalesUpdaterError
             return True
         else:
             return False
 
-    def _process_items_on_page(self, bs: BeautifulSoup, category_leaf: ItemCategory):
+    def _process_items_on_page(self, bs: BeautifulSoup, category: ItemCategory, page_num: int):
         all_items = bs.find('div', class_='catalog_main_table').findAll('div', class_='dtList')
-        item_ids, img_id_to_objs, img_link_to_ids = self._extract_ids_imgs_from_page(all_items)
+        item_ids, img_id_to_objs, img_link_to_ids = self._extract_info_from_page(all_items)
 
+        self._create_or_update_imgs(img_link_to_ids, img_id_to_objs)
+
+        full_items_info = self._get_full_api_info(item_ids)
+        self.revision_scraper.check_wb_result_fullness(full_items_info, item_ids)
+
+        full_items = self.add_items_to_db(full_items_info)
+        self._add_category_and_imgs(full_items, category, img_id_to_objs)
+
+        start = time.time()
+        self.revision_scraper.update_from_args(full_items, full_items_info)
+        logger.debug(f'\tTime for revisions update is {time.time()-start:0.2f} sec.')
+
+        self._create_positions(item_ids, category, page_num)
+
+    def _extract_info_from_page(self, all_items: List[Tag]) -> Tuple[List[int], Dict[int, Image], Dict[str, int]]:
+        marketplace_ids, imgs, link_to_ids = [], {}, {}
+        for item in all_items:
+            found_image = False
+            for tag in item.findAll('img'):
+                link = tag.get('src')
+                if link is not None and 'blank' not in link:
+                    img_link = 'https:' + link
+                    img_obj = Image(marketplace_link=img_link, marketplace_source=self.marketplace_source,
+                                    next_parse_time=now())
+                    imgs[int(item['data-popup-nm-id'])] = img_obj
+                    link_to_ids[img_link] = int(item['data-popup-nm-id'])
+                    marketplace_ids.append(int(item['data-popup-nm-id']))
+                    found_image = True
+                    break
+            if not found_image:
+                logger.error(f'Found item with no image. Check it:\n\n{item.prettify()}')
+                marketplace_ids.append(int(item['data-popup-nm-id']))
+        return marketplace_ids, imgs, link_to_ids
+
+    def _create_or_update_imgs(self, img_link_to_ids: Dict[str, int], img_id_to_objs: Dict[int, Image]):
         self.lock.acquire()
         imgs_filtered = Image.objects.filter(marketplace_link__in=img_link_to_ids.keys())
         filtered_imgs_ids = []
@@ -288,17 +332,23 @@ class WildberriesItemInCategoryScraper(WildberriesItemBase):
             item_id = img_link_to_ids[new_img.marketplace_link]
             img_id_to_objs[item_id] = new_img
 
-        available_items = Item.objects.filter(marketplace_id__in=item_ids)
-        updated_ids = self._add_category_and_imgs(available_items, category_leaf,
-                                                  img_id_to_objs) if available_items else set()
-        not_in_db_ids = set(item_ids) - updated_ids
+    def _get_full_api_info(self, item_ids: List[int]) -> List[Dict]:
+        items_result = self.get_api_info(item_ids, type_info='items')
+        sellers_result = self.get_api_info(item_ids, type_info='sellers')
 
-        item_json = self.get_item_or_seller_info(list(not_in_db_ids), self.config.items_api_url, ';')
-        if item_json['state'] == 0:
-            new_items = self.add_items_to_db(item_json['data']['products'])
-            self._add_category_and_imgs(new_items, category_leaf, img_id_to_objs)
+        if items_result['state'] == 0 and sellers_result['resultState'] == 0 and items_result['data']['products']:
+            seller_id_to_name = {i['cod1S']: i['supplierName'] for i in sellers_result['value']}
+            for item in items_result['data']['products']:
+                item['sellerName'] = seller_id_to_name.get(item['id'])
+            return items_result['data']['products']
+        elif items_result['state'] == 0 and items_result['data']['products']:
+            logger.warning(f'Error result in {item_ids}: {sellers_result}')
+            return items_result['data']['products']
+        elif items_result['state'] == 0 and not items_result['data']['products']:
+            logger.info(f'Items response is empty: {items_result}')
         else:
-            logger.warning(f'Got bad response for items: {item_json}')
+            logger.warning(f'Error result in {item_ids}: {items_result}')
+        return []
 
     @staticmethod
     def _add_category_and_imgs(items: List[Item], category_leaf: ItemCategory,
@@ -306,24 +356,18 @@ class WildberriesItemInCategoryScraper(WildberriesItemBase):
         updated_ids = set()
         for item in items:
             item.categories.add(category_leaf)
-            item.images.add(item_imgs[item.marketplace_id])
+
+            image = item_imgs.get(item.marketplace_id)
+            if image is not None:
+                item.images.add(image)
             updated_ids.add(item.marketplace_id)
         return updated_ids
 
-    def _extract_ids_imgs_from_page(self, all_items: List[Tag]) -> Tuple[List[int], Dict[int, Image], Dict[str, int]]:
-        marketplace_ids, imgs, link_to_ids = [], {}, {}
-        for item in all_items:
-            for tag in item.findAll('img'):
-                try:
-                    link = tag['src']
-                except AttributeError:
-                    continue
-                if 'blank' not in link:
-                    img_link = 'https:' + link
-                    img_obj = Image(marketplace_link=img_link, marketplace_source=self.marketplace_source,
-                                    next_parse_time=now())
-                    imgs[int(item['data-popup-nm-id'])] = img_obj
-                    link_to_ids[img_link] = int(item['data-popup-nm-id'])
-                    marketplace_ids.append(int(item['data-popup-nm-id']))
-                    break
-        return marketplace_ids, imgs, link_to_ids
+    def _create_positions(self, mp_ids: List[int], category: ItemCategory, page_num: int):
+        items = Item.objects.filter(marketplace_id__in=mp_ids)
+        assert len(items) == len(mp_ids)
+        new_positions = []
+        for i, item in enumerate(items):
+            position = page_num * self.config.items_per_page + (i+1)
+            new_positions.append(ItemPosition(item=item, category=category, position_num=position))
+        ItemPosition.objects.bulk_create(new_positions)

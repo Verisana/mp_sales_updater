@@ -18,6 +18,7 @@ class ScraperConfigs:
     revisions_parse_frequency: timedelta
     categories_parse_frequency: timedelta
     images_parse_frequency: timedelta
+    items_per_page: int
 
 
 @dataclass

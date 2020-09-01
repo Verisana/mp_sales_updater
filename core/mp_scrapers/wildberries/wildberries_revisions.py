@@ -19,15 +19,41 @@ class WildberriesRevisionScraper(WildberriesBaseScraper):
 
         items, marketplace_ids = self._get_items_to_update()
 
-        if len(marketplace_ids) > 0:
-            items_info = self._get_items_info(marketplace_ids)
-            self._check_wb_result_fullness(items_info, marketplace_ids)
+        if len(marketplace_ids) == 0:
+            return -1
 
-            new_revisions = self._create_new_revisions(items_info, items)
-            self._set_new_revisions_to_items(items, new_revisions)
+        items_info = self._get_items_info(marketplace_ids)
+        self.check_wb_result_fullness(items_info, marketplace_ids)
 
+        self._execute_revision_update(items, items_info)
         logger.debug(f'Done in {time.time() - start:0.0f} seconds')
         return 0
+
+    def update_from_args(self, items: List[Item], items_info: List[Dict]) -> int:
+        start = time.time()
+        connection.close()
+
+        checked_items = []
+        for item in items:
+            if item.revisions_next_parse_time <= now():
+                checked_items.append(item)
+
+        if len(checked_items) == 0:
+            return -1
+
+        self._execute_revision_update(checked_items, items_info)
+        logger.debug(f'Done in {time.time() - start:0.0f} seconds')
+        return 0
+
+    @staticmethod
+    def check_wb_result_fullness(items_info: List[Dict], marketplace_ids: List[int]) -> None:
+        assert len(items_info) == len(marketplace_ids)
+        for item_info, marketplace_id in zip(items_info, marketplace_ids):
+            assert item_info['id'] == marketplace_id
+
+    def _execute_revision_update(self, items: List[Item], items_info: List[Dict]) -> None:
+        new_revisions = self._create_new_revisions(items_info, items)
+        self._set_new_revisions_to_items(items, new_revisions)
 
     def _get_items_to_update(self) -> Tuple[List[Item], List[int]]:
         with transaction.atomic():
@@ -62,12 +88,6 @@ class WildberriesRevisionScraper(WildberriesBaseScraper):
         else:
             logger.error(f'Expected valid state from items_info {json_result}')
 
-    @staticmethod
-    def _check_wb_result_fullness(items_info: List[Dict], marketplace_ids: List[int]) -> None:
-        assert len(items_info) == len(marketplace_ids)
-        for item_info, marketplace_id in zip(items_info, marketplace_ids):
-            assert item_info['id'] == marketplace_id
-
     def _create_new_revisions(self, items_info: List[Dict], items: List[Item]) -> List[ItemRevision]:
         new_revisions = []
         assert len(items_info) == len(items)
@@ -90,12 +110,11 @@ class WildberriesRevisionScraper(WildberriesBaseScraper):
                 result += stock['qty']
         return result
 
-    @staticmethod
-    def _set_new_revisions_to_items(items: List[Item], new_revisions: List[ItemRevision]) -> None:
+    def _set_new_revisions_to_items(self, items: List[Item], new_revisions: List[ItemRevision]) -> None:
         items_to_update = []
         assert len(new_revisions) == len(items)
         for revision, item in zip(new_revisions, items):
-            item.revisions_next_parse_time = now() + item.revisions_parse_frequency
+            item.revisions_next_parse_time = now() + self.config.revisions_parse_frequency
             item.revisions_start_parse_time = None
             items_to_update.append(item)
         Item.objects.bulk_update(items_to_update, ['revisions_next_parse_time',

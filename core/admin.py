@@ -2,7 +2,7 @@ from django.contrib import admin
 from mptt.admin import MPTTModelAdmin
 
 from .models import Marketplace, MarketplaceScheme, Item, ItemRevision, ItemCategory, Image, \
-                    Brand, Colour, Seller
+                    Brand, Colour, Seller, ItemPosition
 
 
 class ModelAdminAllFieldsMixin(object):
@@ -25,6 +25,11 @@ class MarketplaceSchemeAdmin(ModelAdminAllFieldsMixin, admin.ModelAdmin):
 @admin.register(Item)
 class ItemAdmin(ModelAdminAllFieldsMixin, admin.ModelAdmin):
     filter_horizontal = ('categories', 'images', 'colours')
+
+
+@admin.register(ItemPosition)
+class ItemPositionAdmin(ModelAdminAllFieldsMixin, admin.ModelAdmin):
+    pass
 
 
 @admin.register(ItemRevision)
