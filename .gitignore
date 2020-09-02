@@ -130,11 +130,12 @@ dmypy.json
 .pyre/
 
 .idea/
-/sensitive_info.txt
+/.scripts/sensitive_info.txt
 /core/utils/webshare_proxies.txt
 /media
 /logs/
 /static
-.scripts/
+/.scripts/
 
 /.docker/db.env
+/.env.prod

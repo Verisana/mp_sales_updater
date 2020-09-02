@@ -9,10 +9,12 @@ RUN apt-get update && apt-get install -y python3-dev libpq-dev netcat
 ENV PYTHONUNBUFFERED 1
 
 COPY --chown=gr1902 ./requirements.txt .
-RUN /home/gr1902/venv/bin/python3 -m pip install --upgrade pip
-RUN pip install wheel==0.34.2
-RUN pip install -r requirements.txt
+RUN pip install --upgrade pip && pip install -r requirements.txt
 
 COPY --chown=gr1902 . .
+RUN mkdir logs && mkdir media && mkdir static && \
+    chown -R gr1902 logs/ && chown -R gr1902 static/ && chown -R gr1902 media/
+
 USER gr1902
-RUN mkdir logs
+
+ENTRYPOINT ["/home/gr1902/mp_sales_updater/.docker/entrypoint.prod.sh"]
