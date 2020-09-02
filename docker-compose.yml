@@ -1,4 +1,4 @@
-version: '3'
+version: "3.8"
 services:
   django:
     image: gr1902/mp_sales_updater
@@ -12,16 +12,14 @@ services:
       - ./:/home/gr1902/mp_sales_updater
     ports:
       - 8000:8000
-    depends_on:
-      - db
     restart: always
   db:
-    image: postgres:12
-    restart: always
+    image: postgres:12.4
     volumes:
       - postgres_data:/var/lib/postgresql/data/
     env_file:
       - .docker/db.env
+    restart: always
 
 volumes:
   postgres_data:

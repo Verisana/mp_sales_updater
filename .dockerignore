@@ -141,3 +141,4 @@ sensitive_info.txt
 README.md
 .docker/db.env
 .scripts/
+.env.prod

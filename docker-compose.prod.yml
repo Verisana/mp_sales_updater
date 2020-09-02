@@ -1,17 +1,40 @@
-version: '3.8'
+version: "3.8"
 services:
-  mp_sales_updater:
+  django:
     image: gr1902/mp_sales_updater
     build:
       context: .
-      dockerfile: Dockerfile.dev
+      dockerfile: Dockerfile.prod
     env_file:
-      - .env
-    command: /home/gr1902/mp_sales_updater/entrypoint.prod.sh
+      - .env.prod
+    command: gunicorn --bind 0.0.0.0:8000 project.wsgi:application
     volumes:
       - ./core/utils/webshare_proxies.txt:/home/gr1902/mp_sales_updater/core/utils/webshare_proxies.txt
-    ports:
-      - 8000:8000
+      - static_volume:/home/gr1902/mp_sales_updater/static
+      - media_volume:/home/gr1902/mp_sales_updater/media
+    expose:
+      - 8000
+    restart: always
     depends_on:
       - db
+  db:
+    image: postgres:12.4
+    volumes:
+      - postgres_data:/var/lib/postgresql/data/:delegated
+    env_file:
+      - .docker/db.env
     restart: always
+  nginx:
+    build: ./nginx
+    ports:
+      - 8000:80
+    volumes:
+      - static_volume:/home/gr1902/mp_sales_updater/static
+      - media_volume:/home/gr1902/mp_sales_updater/media
+    depends_on:
+      - django
+
+volumes:
+  postgres_data:
+  static_volume:
+  media_volume:
