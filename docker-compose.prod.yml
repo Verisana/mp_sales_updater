@@ -7,7 +7,7 @@ services:
       dockerfile: Dockerfile.prod
     env_file:
       - .env.prod
-    command: gunicorn --bind :8000 project.wsgi:application
+    command: gunicorn --bind 127.0.0.1:8000 project.wsgi:application
     volumes:
       - ./core/utils/webshare_proxies.txt:/home/gr1902/mp_sales_updater/core/utils/webshare_proxies.txt
       - static_volume:/home/gr1902/mp_sales_updater/static
