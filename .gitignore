@@ -130,7 +130,6 @@ dmypy.json
 .pyre/
 
 .idea/
-/.scripts/sensitive_info.txt
 /core/utils/webshare_proxies.txt
 /media
 /logs/
