@@ -24,7 +24,7 @@ INTERNAL_IPS = ast.literal_eval(os.getenv('INTERNAL_IPS'))
 CSRF_COOKIE_SECURE = True if os.getenv('CSRF_COOKIE_SECURE') == 'True' else False
 SESSION_COOKIE_SECURE = True if os.getenv('SESSION_COOKIE_SECURE') == 'True' else False
 SECURE_SSL_REDIRECT = True if os.getenv('SECURE_SSL_REDIRECT') == 'True' else False
-SECURE_HSTS_SECONDS = int(os.getenv('SECURE_SSL_REDIRECT', 0))
+SECURE_HSTS_SECONDS = int(os.getenv('SECURE_HSTS_SECONDS', 0))
 
 INSTALLED_APPS = [
     'django_extensions',
