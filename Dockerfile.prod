@@ -13,7 +13,7 @@ RUN pip install --upgrade pip && pip install -r requirements.txt
 
 COPY --chown=gr1902 . .
 RUN mkdir logs && mkdir media && mkdir static && \
-    chown -R gr1902 logs/ && chown -R gr1902 static/ && chown -R gr1902 media/
+    chown -R gr1902 logs/ && chown -R gr1902 static/ && chown -R gr1902 media/ && chmod +x .docker/entrypoint.prod.sh
 
 USER gr1902
 
