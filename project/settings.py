@@ -25,6 +25,8 @@ CSRF_COOKIE_SECURE = True if os.getenv('CSRF_COOKIE_SECURE') == 'True' else Fals
 SESSION_COOKIE_SECURE = True if os.getenv('SESSION_COOKIE_SECURE') == 'True' else False
 SECURE_SSL_REDIRECT = True if os.getenv('SECURE_SSL_REDIRECT') == 'True' else False
 SECURE_HSTS_SECONDS = int(os.getenv('SECURE_HSTS_SECONDS', 0))
+SECURE_HSTS_INCLUDE_SUBDOMAINS = True if os.getenv('SECURE_HSTS_INCLUDE_SUBDOMAINS') == 'True' else False
+SECURE_HSTS_PRELOAD = True if os.getenv('SECURE_HSTS_PRELOAD') == 'True' else False
 
 INSTALLED_APPS = [
     'django_extensions',
