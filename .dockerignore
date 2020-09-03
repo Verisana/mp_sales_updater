@@ -141,5 +141,5 @@ dmypy.json
 .gitignore
 .docker/db.env
 .env.prod
-/magic-stat.crt
+/magic-stat.ru.crt
 /magic-stat.ru.key
