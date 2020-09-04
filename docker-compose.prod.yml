@@ -14,6 +14,7 @@ services:
       - ./core/utils/webshare_proxies.txt:/home/gr1902/mp_sales_updater/core/utils/webshare_proxies.txt
       - static_volume:/home/gr1902/mp_sales_updater/static
       - media_volume:/home/gr1902/mp_sales_updater/media
+      - gunicorn_socket:/home/gr1902/mp_sales_updater/run/gunicorn.sock
     restart: always
     depends_on:
       - db
@@ -32,6 +33,7 @@ services:
     volumes:
       - static_volume:/home/gr1902/mp_sales_updater/static
       - media_volume:/home/gr1902/mp_sales_updater/media
+      - gunicorn_socket:/home/gr1902/mp_sales_updater/run/gunicorn.sock
       - ./magic-stat.ru.crt:/etc/ssl/magic-stat.ru.crt
       - ./magic-stat.ru.key:/etc/ssl/magic-stat.ru.key
     depends_on:
@@ -41,3 +43,4 @@ volumes:
   postgres_data:
   static_volume:
   media_volume:
+  gunicorn_socket:
