@@ -284,9 +284,9 @@ class WildberriesItemScraper(WildberriesItemBase):
         category = self._get_category()
         if category is None:
             return -1
-        logger.debug(f'Start update from mp for {category}')
+        logger.info(f'Start update from mp for {category}')
         self._process_all_pages(category)
-        logger.info(f'{category} elapsed {(time.time() - start):0.0f} seconds')
+        logger.debug(f'{category} elapsed {(time.time() - start):0.0f} seconds')
         return 0
 
     def _get_category(self) -> ItemCategory:
@@ -295,7 +295,7 @@ class WildberriesItemScraper(WildberriesItemBase):
             num_items = ItemCategory.objects.filter(
                 marketplace_source=self.marketplace_source, is_deleted=False,
                 start_parse_time__isnull=True, next_parse_time__lte=now()).count()
-            logger.debug(f'Remained {num_items} operation elapsed {time.time()-start:0.2f}')
+            logger.info(f'Remained {num_items} operation elapsed {time.time()-start:0.2f}')
 
             category = ItemCategory.objects.select_for_update(skip_locked=True).exclude(children__isnull=False).filter(
                 marketplace_source=self.marketplace_source, is_deleted=False,
@@ -325,7 +325,7 @@ class WildberriesItemScraper(WildberriesItemBase):
             else:
                 self._update_num_items_in_category(bs, category)
                 self._process_items_on_page(bs, category, counter-1)
-            logger.debug(f'\tPage number {counter} for {category} done in {time.time()-start:0.2f} sec.')
+            logger.info(f'\tPage number {counter} for {category} done in {time.time()-start:0.2f} sec.')
             counter += 1
             if debug:
                 break
