@@ -27,5 +27,5 @@ RUN pip install --no-cache-dir --upgrade pip \
     && pip install --no-cache-dir -r requirements.txt
 
 COPY . .
-RUN mkdir logs && mkdir media && mkdir static && chmod +x .docker/entrypoint.sh
+RUN chmod +x .docker/entrypoint.sh
 ENTRYPOINT ["/home/gr1902/mp_sales_updater/.docker/entrypoint.sh"]

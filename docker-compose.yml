@@ -10,6 +10,8 @@ services:
     command: python manage.py runserver 0.0.0.0:8000
     volumes:
       - ./:/home/gr1902/mp_sales_updater
+      - static_volume:/home/gr1902/mp_sales_updater/static
+      - media_volume:/home/gr1902/mp_sales_updater/media
     ports:
       - 8000:8000
     restart: always
@@ -23,3 +25,5 @@ services:
 
 volumes:
   postgres_data:
+  static_volume:
+  media_volume:
