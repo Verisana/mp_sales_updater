@@ -27,7 +27,7 @@ RUN pip install --no-cache-dir --upgrade pip \
     && pip install --no-cache-dir -r requirements.txt
 
 COPY --chown=gr1902 . .
-RUN mkdir logs && mkdir media && mkdir static && \
+RUN mkdir logs && mkdir media && mkdir static \
     && chown -R gr1902 logs/ && chown -R gr1902 static/ && chown -R gr1902 media/ \
     && chmod +x .docker/entrypoint.prod.sh
 
