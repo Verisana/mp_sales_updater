@@ -2,7 +2,6 @@ import json
 from typing import Union, Dict, Tuple
 
 import aiohttp
-import requests
 from bs4 import BeautifulSoup
 
 from core.types import RequestBody
@@ -39,8 +38,8 @@ class Connector:
                 for i in range(self.try_count):
                     try:
                         response = await self._send_request(request_info, session)
-                    except requests.exceptions.RequestException as e:
-                        logger.warning(f'Requests error: {e}')
+                    except aiohttp.ClientError as e:
+                        logger.warning(f'aiohttp error: {e}')
                         continue
 
                     is_captcha = False
