@@ -12,7 +12,7 @@ services:
       - 8000
     volumes:
       - ./core/utils/webshare_proxies.txt:/home/gr1902/mp_sales_updater/core/utils/webshare_proxies.txt
-      - ./logs:logs/
+      - ./logs:/home/gr1902/mp_sales_updater/logs
       - static_volume:/home/gr1902/mp_sales_updater/static
       - media_volume:/home/gr1902/mp_sales_updater/media
     restart: always
