@@ -52,7 +52,7 @@ class WildberriesItemBase(WildberriesBaseScraper):
             counter += 1
             json_result, _, _ = await self.connector.get_page(RequestBody(url, method='get',
                                                               parsing_type='json', headers=headers))
-            if self._is_valid_result(json_result):
+            if self._is_valid_result(json_result, indices):
                 return json_result
             elif counter > 5:
                 logger.warning(f"Could not get SuppliersName for all requested items "
@@ -120,18 +120,25 @@ class WildberriesItemBase(WildberriesBaseScraper):
         return all_items
 
     @staticmethod
-    def _is_valid_result(json_result: Dict) -> bool:
+    def _is_valid_result(json_result: Dict, item_ids: List[int]) -> bool:
         # We only want to check for seller updates
         if 'state' in json_result.keys():
-            return True
-        else:
-            try:
-                if json_result['resultState'] == 0:
-                    _ = {i['cod1S']: i['supplierName'] for i in json_result['value']}
-                return True
-            except KeyError as e:
-                logger.warning(f'KeyError caught json_result: {e}')
+            if json_result['state'] == 0 and len(json_result['data']['products']) != len(item_ids):
                 return False
+            else:
+                return True
+        else:
+            if json_result['resultState'] == 0:
+                try:
+                    _ = {i['cod1S']: i['supplierName'] for i in json_result['value']}
+                except KeyError as e:
+                    logger.warning(f'KeyError caught json_result: {e}')
+                    return False
+                if len(json_result['value']) != len(item_ids):
+                    logger.warning(f'Different sizes for json_result for sellers: '
+                                   f'{json_result["value"]} and {item_ids}')
+                    return False
+            return True
 
     def _aggregate_info_from_items(self, items: List[Dict]) -> Tuple[
         Dict[Union[str, int], List[int]], Dict[Union[str, int], List[int]], Dict[Union[str, int], List[int]], List[
