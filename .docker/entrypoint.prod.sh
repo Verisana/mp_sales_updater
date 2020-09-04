@@ -11,6 +11,4 @@ then
     echo "PostgreSQL started"
 fi
 
-echo yes | python manage.py collectstatic
-
 exec "$@"
