@@ -26,5 +26,5 @@ COPY ./requirements.txt .
 RUN pip install --upgrade pip && pip install -r requirements.txt
 
 COPY . .
-RUN mkdir logs && mkdir media && mkdir static
+RUN mkdir logs && mkdir media && mkdir static && chmod +x .docker/entrypoint.prod.sh
 ENTRYPOINT ["/home/gr1902/mp_sales_updater/.docker/entrypoint.sh"]
