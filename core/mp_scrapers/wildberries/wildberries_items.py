@@ -1,4 +1,5 @@
 import asyncio
+import json
 import multiprocessing
 import time
 from collections import defaultdict
@@ -58,7 +59,7 @@ class WildberriesItemBase(WildberriesBaseScraper):
                 with open(f'logs/json_result_{type_info}.txt', 'w') as file:
                     file.write(url)
                     file.write('\n\n')
-                    file.write(json_result)
+                    file.write(json.dumps(json_result))
                     file.write('\n\n')
                 logger.warning(f"Could not get json api for all requested items "
                                f"for indices count {len(indices)}")
