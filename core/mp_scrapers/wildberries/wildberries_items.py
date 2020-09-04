@@ -56,8 +56,10 @@ class WildberriesItemBase(WildberriesBaseScraper):
                 return json_result
             elif counter > 10:
                 with open(f'logs/json_result_{type_info}.txt', 'w') as file:
-                    file.write(url + '\n')
-                    file.write(json_result + '\n')
+                    file.write(url)
+                    file.write('\n\n')
+                    file.write(json_result)
+                    file.write('\n\n')
                 logger.warning(f"Could not get json api for all requested items "
                                f"for indices count {len(indices)}")
                 return json_result
