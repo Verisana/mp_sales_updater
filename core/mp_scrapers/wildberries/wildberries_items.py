@@ -125,24 +125,48 @@ class WildberriesItemBase(WildberriesBaseScraper):
             all_items.sort(key=lambda x: x.marketplace_id)
         return all_items
 
+    def add_empty_items_to_db(self, items: List[Dict]) -> List[Item]:
+        current_time = now()
+        new_items, old_items = [], []
+
+        self.lock.acquire()
+        for i, item in enumerate(items):
+            create_params = {'name': item['name'], 'marketplace_id': item['marketplace_id'],
+                             'marketplace_source': self.marketplace_source, 'revisions_next_parse_time': current_time}
+
+            get_params = {'marketplace_id': item['marketplace_id'], 'marketplace_source': self.marketplace_source}
+            try:
+                old_items.append(Item.objects.get(**get_params))
+            except Item.DoesNotExist:
+                new_items.append(Item(**create_params))
+                continue
+            except Item.MultipleObjectsReturned:
+                logger.error(f'Something is wrong. You should get one object for params: {get_params}')
+                existing_items = Item.objects.filter(**get_params)
+                old_items.append(existing_items[0])
+                for duplicate_item in existing_items[1:]:
+                    duplicate_item.delete()
+
+        if new_items:
+            new_items = Item.objects.bulk_create(new_items)
+        self.lock.release()
+
+        all_items = old_items + new_items
+        if len(all_items) > 0:
+            all_items.sort(key=lambda x: x.marketplace_id)
+        return all_items
+
     @staticmethod
     def _is_valid_result(json_result: Dict, item_ids: List[int]) -> bool:
         # We only want to check for seller updates
         if 'state' in json_result.keys():
-            if json_result['state'] == 0 and len(json_result['data']['products']) != len(item_ids):
-                return False
-            else:
-                return True
+            return True
         else:
             if json_result['resultState'] == 0:
                 try:
                     _ = {i['cod1S']: i['supplierName'] for i in json_result['value']}
                 except KeyError as e:
                     logger.warning(f'KeyError caught json_result: {e}')
-                    return False
-                if len(json_result['value']) != len(item_ids):
-                    logger.warning(f'Different sizes for json_result for sellers: '
-                                   f'{json_result["value"]} and {item_ids}')
                     return False
             return True
 
@@ -345,7 +369,11 @@ class WildberriesItemScraper(WildberriesItemBase):
 
         full_items_info = asyncio.run(self._get_full_api_info(item_ids))
 
-        self.revision_scraper.check_wb_result_fullness(full_items_info, item_ids)
+        empty_ids = list(set(item_ids) - set([item['id'] for item in full_items_info]))
+        if empty_ids:
+            empty_items_info = self._get_empty_items(empty_ids, category)
+            empty_items = self.add_empty_items_to_db(empty_items_info)
+            self._add_category_and_imgs(empty_items, category, img_id_to_objs)
 
         full_items = self.add_items_to_db(full_items_info)
         self._add_category_and_imgs(full_items, category, img_id_to_objs)
@@ -414,6 +442,10 @@ class WildberriesItemScraper(WildberriesItemBase):
             result.sort(key=lambda x: x['id'])
         return result
 
+    def _get_empty_items(self, empty_ids: List[int], category: ItemCategory) -> List[Dict]:
+        return [{'name': category.name, 'marketplace_id': mp_id,
+                 'marketplace_source': self.marketplace_source} for mp_id in empty_ids]
+
     @staticmethod
     def _add_category_and_imgs(items: List[Item], category_leaf: ItemCategory,
                                item_imgs: Dict[int, Image]) -> Set[int]:
@@ -431,7 +463,8 @@ class WildberriesItemScraper(WildberriesItemBase):
         items = Item.objects.filter(marketplace_id__in=mp_ids)
         assert len(items) == len(mp_ids)
         new_positions = []
-        for i, item in enumerate(items):
+        for i, mp_id in enumerate(mp_ids):
             position = page_num * self.config.items_per_page + (i+1)
+            item = next(filter(lambda x: x == mp_id, items))
             new_positions.append(ItemPosition(item=item, category=category, position_num=position))
         ItemPosition.objects.bulk_create(new_positions)
