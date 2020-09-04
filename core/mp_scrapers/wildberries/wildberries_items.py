@@ -465,6 +465,6 @@ class WildberriesItemScraper(WildberriesItemBase):
         new_positions = []
         for i, mp_id in enumerate(mp_ids):
             position = page_num * self.config.items_per_page + (i+1)
-            item = next(filter(lambda x: x == mp_id, items))
+            item = next(filter(lambda x: x.marketplace_id == mp_id, items))
             new_positions.append(ItemPosition(item=item, category=category, position_num=position))
         ItemPosition.objects.bulk_create(new_positions)
