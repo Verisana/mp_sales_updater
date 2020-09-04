@@ -12,7 +12,6 @@ services:
       - ./core/utils/webshare_proxies.txt:/home/gr1902/mp_sales_updater/core/utils/webshare_proxies.txt
       - static_volume:/home/gr1902/mp_sales_updater/static
       - media_volume:/home/gr1902/mp_sales_updater/media
-      - gunicorn.sock:/tmp/gunicorn.sock
     restart: always
     depends_on:
       - db
