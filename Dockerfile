@@ -2,7 +2,7 @@ FROM python:3.8-buster
 
 WORKDIR /home/gr1902/mp_sales_updater
 
-# install psycopg2 dependencies
+# install psycopg2 dependencies and other packages
 RUN apt-get update && apt-get install -y python3-dev libpq-dev netcat locales
 
 # Locale
