@@ -55,9 +55,11 @@ class WildberriesItemBase(WildberriesBaseScraper):
             if self._is_valid_result(json_result, indices):
                 return json_result
             elif counter > 10:
-                json_list = json_result['value'] if type_info == 'sellers' else json_result['data']['products']
+                with open(f'logs/json_result_{type_info}.txt', 'w') as file:
+                    file.write(url + '\n')
+                    file.write(json_result + '\n')
                 logger.warning(f"Could not get json api for all requested items "
-                               f"for indices {len(indices)}!= {len(json_list)}")
+                               f"for indices count {len(indices)}")
                 return json_result
 
     def add_items_to_db(self, items: List[Dict]) -> List[Item]:
