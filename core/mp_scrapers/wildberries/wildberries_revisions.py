@@ -24,8 +24,6 @@ class WildberriesRevisionScraper(WildberriesBaseScraper):
             return -1
 
         items_info = self._get_items_info(marketplace_ids)
-        self.check_wb_result_fullness(items_info, marketplace_ids)
-
         self._execute_revision_update(items, items_info)
         logger.debug(f'Done in {time.time() - start:0.0f} seconds')
         return 0
@@ -48,13 +46,15 @@ class WildberriesRevisionScraper(WildberriesBaseScraper):
         return 0
 
     @staticmethod
-    def check_wb_result_fullness(items_info: List[Dict], marketplace_ids: List[int]) -> None:
-        assert len(items_info) == len(marketplace_ids)
-        marketplace_ids.sort()
-        for item_info, marketplace_id in zip(items_info, marketplace_ids):
-            assert item_info['id'] == marketplace_id
+    def check_items_fullness(items: List[Item], items_info: List[Dict]) -> None:
+        assert len(items) == len(items_info)
+        items_info.sort(key=lambda x: x['id'])
+        items.sort(key=lambda x: x.marketplace_id)
+        for item, item_info in zip(items, items_info):
+            assert item.marketplace_id == item_info['id']
 
     def _execute_revision_update(self, items: List[Item], items_info: List[Dict]) -> None:
+        self.check_items_fullness(items, items_info)
         new_revisions = self._create_new_revisions(items, items_info)
         self._update_revision_times(items, new_revisions)
 
