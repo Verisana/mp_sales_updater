@@ -30,6 +30,7 @@ class WildberriesItemBase(WildberriesBaseScraper):
                           'Chrome/83.0.4103.116 Safari/537.36',
             'x-requested-with': 'XMLHttpRequest',
         }
+        self.lock = multiprocessing.Manager().Lock()
 
     def update_from_mp(self, start_from: int = None) -> int:
         raise NotImplementedError
@@ -59,17 +60,20 @@ class WildberriesItemBase(WildberriesBaseScraper):
                 return json_result
 
     def add_items_to_db(self, items: List[Dict]) -> List[Item]:
+        self.lock.acquire()
         brand_id_to_idx, colour_id_to_idx, seller_id_to_idx, items_info = self._aggregate_info_from_items(items)
 
         self._fill_nones_in_items(brand_id_to_idx, items_info, Brand, 'brand', 'marketplace_id')
         self._fill_nones_in_items(colour_id_to_idx, items_info, Colour, 'colour', 'marketplace_id')
         self._fill_nones_in_items(seller_id_to_idx, items_info, Seller, 'seller', 'name')
+        self.lock.release()
 
         current_time = now()
         new_items, old_items, colours_old_items, colours_new_items = [], [], [], []
         fields_to_update = ['name', 'size_name', 'size_orig_name']
 
         last_marketplace_id = 0
+        self.lock.acquire()
         for i, item in enumerate(items_info):
             create_params = {'name': item['name'], 'marketplace_id': item['marketplace_id'],
                              'marketplace_source': self.marketplace_source, 'root_id': item['root_id'],
@@ -108,6 +112,7 @@ class WildberriesItemBase(WildberriesBaseScraper):
                 new_items = Item.objects.bulk_create(new_items)
                 for new_item, colour_pks in zip(new_items, colours_new_items):
                     new_item.colours.add(*colour_pks)
+        self.lock.release()
 
         all_items = old_items + new_items
         if len(all_items) > 0:
@@ -197,7 +202,7 @@ class WildberriesItemBase(WildberriesBaseScraper):
         new_models = model.objects.bulk_create(new_models)
         for model in new_models:
             if isinstance(field_to_ident, str):
-                idxs = id_to_idx[model.__getattribute__(field_to_ident)]
+                idxs: List[int] = id_to_idx[model.__getattribute__(field_to_ident)]
             else:
                 key = ' '.join([model.__getattribute__(field) for field in field_to_ident])
                 idxs = id_to_idx[key]
@@ -225,7 +230,6 @@ class WildberriesItemScraper(WildberriesItemBase):
         logger.debug(f'Start check parse times')
         self._check_parse_times()
         logger.debug(f'Stop check parse times')
-        self.lock = multiprocessing.Manager().Lock()
         self.revision_scraper = WildberriesRevisionScraper()
 
     @staticmethod
