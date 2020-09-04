@@ -30,7 +30,7 @@ COPY --chown=gr1902 . .
 RUN mkdir logs && mkdir media && mkdir static && \
     chown -R gr1902 logs/ && chown -R gr1902 static/ && chown -R gr1902 media/ && chmod +x .docker/entrypoint.prod.sh
 
-RUN mkdir /tmp/gunicorn.sock && chown -R gr1902 /tmp/gunicorn.sock
+RUN mkdir -p /run/gunicorn.sock && chown -R gr1902 /run/gunicorn.sock
 
 USER gr1902
 
