@@ -7,7 +7,7 @@ services:
       dockerfile: Dockerfile.prod
     env_file:
       - .env.prod
-    command: gunicorn --bind :8000 --workers 1 project.wsgi:application
+    command: .docker/gunicorn_start.sh
     expose:
       - 8000
     volumes:
