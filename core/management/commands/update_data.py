@@ -19,7 +19,7 @@ class Command(BaseCommand):
         parser.add_argument('mp', type=str)
         parser.add_argument('type', type=str)
         parser.add_argument('--source_file', type=str)
-        parser.add_argument('--cpu_multiplayer', type=int)
+        parser.add_argument('--cpu_multiplayer', type=float)
 
     def handle(self, *args, **options):
         mp, action_type, source_file, cpu_multiplayer = self._get_arguments(options)
@@ -56,7 +56,7 @@ class Command(BaseCommand):
 
         if isinstance(options.get('source_file'), str):
             source_file = options.get('source_file').lower()
-        if isinstance(options.get('cpu_multiplayer'), int):
+        if isinstance(options.get('cpu_multiplayer'), float):
             cpu_multiplayer = options.get('cpu_multiplayer')
 
         return mp, action_type, source_file, cpu_multiplayer
