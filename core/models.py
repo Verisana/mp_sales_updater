@@ -49,7 +49,6 @@ class Item(StandardFields):
     colours = models.ManyToManyField('Colour', blank=True, related_name='items')
     size_name = models.CharField(max_length=128, blank=True, null=True)
     size_orig_name = models.CharField(max_length=128, blank=True, null=True)
-    is_digital = models.BooleanField(default=False)
     is_adult = models.BooleanField(default=False)
 
     items_next_parse_time = models.DateTimeField(null=True, blank=True, db_index=True)
