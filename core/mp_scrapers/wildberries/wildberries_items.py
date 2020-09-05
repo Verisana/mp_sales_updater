@@ -82,8 +82,7 @@ class WildberriesItemBase(WildberriesBaseScraper):
                              'marketplace_source': self.marketplace_source, 'root_id': item['root_id'],
                              'brand': item['brand'], 'size_name': item['size_name'],
                              'size_orig_name': item['size_orig_name'], 'seller': item['seller'],
-                             'revisions_next_parse_time': current_time, 'is_digital': item['is_digital'],
-                             'is_adult': item['is_adult']}
+                             'revisions_next_parse_time': current_time, 'is_adult': item['is_adult']}
             get_params = {'marketplace_id': item['marketplace_id'], 'marketplace_source': self.marketplace_source}
             if i > 0:
                 last_marketplace_id = items_info[i - 1]['marketplace_id']
@@ -179,12 +178,14 @@ class WildberriesItemBase(WildberriesBaseScraper):
         brand_id_to_idx, colour_id_to_idx = defaultdict(list), defaultdict(list)
         seller_id_to_idx, items_info = defaultdict(list), []
         for item in items:
-            if item['colors']:
-                for colour in item['colors']:
+            if item.get('isDigital') is not None and item.get('isDigital') == False:
+                if item['colors']:
+                    for colour in item['colors']:
+                        self._fill_objects(brand_id_to_idx, colour_id_to_idx,
+                                           seller_id_to_idx, items_info, item, colour)
+                else:
+                    colour = {'name': ''}
                     self._fill_objects(brand_id_to_idx, colour_id_to_idx, seller_id_to_idx, items_info, item, colour)
-            else:
-                colour = {'name': ''}
-                self._fill_objects(brand_id_to_idx, colour_id_to_idx, seller_id_to_idx, items_info, item, colour)
         return brand_id_to_idx, colour_id_to_idx, seller_id_to_idx, items_info
 
     def _fill_objects(self, brand_id_to_idx: Dict[Union[str, int], List[int]],
