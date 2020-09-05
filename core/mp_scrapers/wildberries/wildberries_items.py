@@ -178,14 +178,13 @@ class WildberriesItemBase(WildberriesBaseScraper):
         brand_id_to_idx, colour_id_to_idx = defaultdict(list), defaultdict(list)
         seller_id_to_idx, items_info = defaultdict(list), []
         for item in items:
-            if item.get('isDigital') is not None and item.get('isDigital') == False:
-                if item['colors']:
-                    for colour in item['colors']:
-                        self._fill_objects(brand_id_to_idx, colour_id_to_idx,
-                                           seller_id_to_idx, items_info, item, colour)
-                else:
-                    colour = {'name': ''}
-                    self._fill_objects(brand_id_to_idx, colour_id_to_idx, seller_id_to_idx, items_info, item, colour)
+            if item['colors']:
+                for colour in item['colors']:
+                    self._fill_objects(brand_id_to_idx, colour_id_to_idx,
+                                       seller_id_to_idx, items_info, item, colour)
+            else:
+                colour = {'name': ''}
+                self._fill_objects(brand_id_to_idx, colour_id_to_idx, seller_id_to_idx, items_info, item, colour)
         return brand_id_to_idx, colour_id_to_idx, seller_id_to_idx, items_info
 
     def _fill_objects(self, brand_id_to_idx: Dict[Union[str, int], List[int]],
@@ -194,7 +193,7 @@ class WildberriesItemBase(WildberriesBaseScraper):
                       colour: Dict) -> None:
         new_item_info = {'name': item['name'][:255], 'marketplace_id': item['id'], 'root_id': item['root'],
                          'brand': None, 'colour': None, 'size_name': '', 'size_orig_name': '', 'seller': None,
-                         'is_digital': item['isDigital'], 'is_adult': item['isAdult']}
+                         'is_adult': item['isAdult']}
         if item['sizes']:
             new_item_info['size_name'] = item['sizes'][0]['name']
             new_item_info['size_orig_name'] = item['sizes'][0]['origName']
@@ -425,15 +424,22 @@ class WildberriesItemScraper(WildberriesItemBase):
         items_result, sellers_result = await asyncio.gather(items_coroutine, sellers_coroutine)
 
         result = []
-        if items_result['state'] == 0 and sellers_result['resultState'] == 0 and items_result['data']['products']:
-            seller_id_to_name = {i['cod1S']: i.get('supplierName') for i in sellers_result['value'] if
-                                 i.get('supplierName') is not None}
-            for item in items_result['data']['products']:
-                item['sellerName'] = seller_id_to_name.get(item['id'])
-            result = items_result['data']['products']
-        elif items_result['state'] == 0 and items_result['data']['products']:
-            logger.warning(f'Error result in {item_ids}: {sellers_result}')
-            result = items_result['data']['products']
+
+        if items_result['state'] == 0 and items_result['data']['products']:
+            # Filter digital items
+            items_result['data']['products'] = list(filter(
+                lambda x: x.get('isDigital') is not None and not x.get('isDigital'),
+                items_result['data']['products']))
+
+            if sellers_result['resultState'] == 0:
+                seller_id_to_name = {i['cod1S']: i.get('supplierName') for i in sellers_result['value'] if
+                                     i.get('supplierName') is not None}
+                for item in items_result['data']['products']:
+                    item['sellerName'] = seller_id_to_name.get(item['id'])
+                result = items_result['data']['products']
+            else:
+                logger.warning(f'Error result in {item_ids}: {sellers_result}')
+                result = items_result['data']['products']
         elif items_result['state'] == 0 and not items_result['data']['products']:
             logger.info(f'Items response is empty: {items_result}')
         else:
@@ -462,10 +468,13 @@ class WildberriesItemScraper(WildberriesItemBase):
 
     def _create_positions(self, mp_ids: List[int], category: ItemCategory, page_num: int):
         items = Item.objects.filter(marketplace_id__in=mp_ids)
-        assert len(items) == len(mp_ids)
         new_positions = []
         for i, mp_id in enumerate(mp_ids):
             position = page_num * self.config.items_per_page + (i + 1)
-            item = next(filter(lambda x: x.marketplace_id == mp_id, items))
+            try:
+                item = next(filter(lambda x: x.marketplace_id == mp_id, items))
+            except StopIteration:
+                logger.error(f'Can not find item {mp_id} in DB. Check the problem')
+                continue
             new_positions.append(ItemPosition(item=item, category=category, position_num=position))
         ItemPosition.objects.bulk_create(new_positions)
