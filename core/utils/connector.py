@@ -1,3 +1,4 @@
+import asyncio
 import json
 from typing import Union, Dict, Tuple
 
@@ -38,8 +39,8 @@ class Connector:
                 for i in range(self.try_count):
                     try:
                         response = await self._send_request(request_info, session)
-                    except aiohttp.ClientError as e:
-                        logger.warning(f'aiohttp error: {e}')
+                    except (aiohttp.ClientError, asyncio.TimeoutError) as e:
+                        logger.warning(f'aiohttp error or asyncio_timeout: {e}')
                         continue
 
                     is_captcha = False
