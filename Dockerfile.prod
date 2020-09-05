@@ -27,7 +27,7 @@ RUN pip install --no-cache-dir --upgrade pip \
     && pip install --no-cache-dir -r requirements.txt
 
 COPY --chown=gr1902 . .
-RUN chmod +x .docker/entrypoint.prod.sh
+RUN chmod +x .docker/entrypoint.prod.sh && chmod +x .docker/gunicorn_start.sh
 
 USER gr1902
 
