@@ -1,5 +1,4 @@
 import asyncio
-import json
 import multiprocessing
 import time
 from collections import defaultdict
@@ -8,13 +7,14 @@ from typing import List, Dict, Tuple, Set, Union, Any, Callable
 from bs4 import BeautifulSoup
 from bs4.element import Tag
 from django.db import connection, transaction
+from django.db.utils import DataError
 from django.db.models import Q
 from django.db.models.base import ModelBase
 from django.utils.timezone import now
 
 from core.exceptions import SalesUpdaterError
 from core.models import ItemCategory, Item, Brand, Colour, Image, Seller, ItemPosition
-from core.mp_scrapers.wildberries.wildberries_base import WildberriesBaseScraper
+from core.mp_scrapers.wildberries.wildberries_base import WildberriesBaseScraper, save_object_for_logging
 from core.mp_scrapers.wildberries.wildberries_revisions import WildberriesRevisionScraper
 from core.types import RequestBody
 from core.utils.logging_helpers import get_logger
@@ -53,14 +53,11 @@ class WildberriesItemBase(WildberriesBaseScraper):
             counter += 1
             json_result, _, _ = await self.connector.get_page(RequestBody(url, method='get',
                                                               parsing_type='json', headers=headers))
-            if self._is_valid_result(json_result, indices):
+            if self._is_valid_result(json_result):
                 return json_result
             elif counter > 10:
-                with open(f'logs/json_result_{type_info}.txt', 'w') as file:
-                    file.write(url)
-                    file.write('\n\n')
-                    file.write(json.dumps(json_result))
-                    file.write('\n\n')
+                save_object_for_logging(url, f'requested_URL.p')
+                save_object_for_logging(json_result, f'returned_json.p')
                 logger.warning(f"Could not get json api for all requested items "
                                f"for indices count {len(indices)}")
                 return json_result
@@ -115,9 +112,15 @@ class WildberriesItemBase(WildberriesBaseScraper):
 
         if new_items:
             with transaction.atomic():
-                new_items = Item.objects.bulk_create(new_items)
+                try:
+                    new_items = Item.objects.bulk_create(new_items)
+                except DataError as e:
+                    save_object_for_logging(new_items, 'corrupted_new_items.p')
+                    logger.exception(e)
+                    raise e
                 for new_item, colour_pks in zip(new_items, colours_new_items):
                     new_item.colours.add(*colour_pks)
+
         self.lock.release()
 
         all_items = old_items + new_items
@@ -157,7 +160,7 @@ class WildberriesItemBase(WildberriesBaseScraper):
         return all_items
 
     @staticmethod
-    def _is_valid_result(json_result: Dict, item_ids: List[int]) -> bool:
+    def _is_valid_result(json_result: Dict) -> bool:
         # We only want to check for seller updates
         if 'state' in json_result.keys():
             return True
@@ -341,8 +344,7 @@ class WildberriesItemScraper(WildberriesItemBase):
             if all_items is not None:
                 logger.info(f'Empty category {category}')
             else:
-                with open(f'logs/bs_{category}.txt', 'w') as file:
-                    file.write(bs.prettify())
+                save_object_for_logging(bs, f'bs_{category}.txt')
                 logger.error(f'Something is wrong while getting divGoodsNotFound for {category}. '
                              f'Beautiful Soup response has been saved')
                 raise SalesUpdaterError

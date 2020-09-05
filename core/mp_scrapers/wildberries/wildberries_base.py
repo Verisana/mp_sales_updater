@@ -1,7 +1,8 @@
 import multiprocessing
+import pickle
 import time
 from abc import ABC, abstractmethod
-from typing import Union
+from typing import Union, Any
 
 from core.models import Marketplace, MarketplaceScheme
 from core.mp_scrapers.configs import WILDBERRIES_CONFIG
@@ -18,6 +19,11 @@ def get_mp_wb() -> Marketplace:
         mp_wildberries.working_schemes.add(scheme_qs)
         mp_wildberries.save()
     return mp_wildberries
+
+
+def save_object_for_logging(obj: Any, name: str) -> None:
+    with open(f'logs/{name}', 'wb') as file:
+        pickle.dump(obj, file)
 
 
 class WildberriesBaseScraper(ABC):
