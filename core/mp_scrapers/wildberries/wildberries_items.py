@@ -406,14 +406,11 @@ class WildberriesItemScraper(WildberriesItemBase):
     def _create_or_update_imgs(self, img_link_to_ids: Dict[str, int], img_id_to_objs: Dict[int, Image]):
         self.lock.acquire()
         imgs_filtered = Image.objects.filter(marketplace_link__in=img_link_to_ids.keys())
-        filtered_imgs_ids = []
         for img_filtered in imgs_filtered:
             item_id = img_link_to_ids[img_filtered.marketplace_link]
             img_id_to_objs[item_id] = img_filtered
-            filtered_imgs_ids.append(item_id)
 
-        new_imgs = Image.objects.bulk_create(
-            [img for marketplace_id, img in img_id_to_objs.items() if marketplace_id not in filtered_imgs_ids])
+        new_imgs = Image.objects.bulk_create([img for img in img_id_to_objs.values() if img.pk is None])
         self.lock.release()
 
         for new_img in new_imgs:
