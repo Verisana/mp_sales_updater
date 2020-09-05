@@ -44,7 +44,11 @@ class Connector:
 
                     is_captcha = False
                     if request_info.parsing_type == 'bs':
-                        content = await response.content.read()
+                        try:
+                            content = await response.content.read()
+                        except aiohttp.ClientPayloadError as e:
+                            logger.warning(f'ClientPayloadError: {e} for bs parsing. Try another attempt')
+                            continue
                         bs, is_captcha = self._parse_to_bs(content, request_info)
                         return bs, is_captcha, response.status
                     elif request_info.parsing_type == 'json':
