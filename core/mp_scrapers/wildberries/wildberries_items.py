@@ -428,8 +428,8 @@ class WildberriesItemScraper(WildberriesItemBase):
 
         result = []
         if items_result['state'] == 0 and sellers_result['resultState'] == 0 and items_result['data']['products']:
-            seller_id_to_name = {i['cod1S']: i.get['supplierName'] for i in sellers_result['value'] if
-                                 i.get['supplierName'] is not None}
+            seller_id_to_name = {i['cod1S']: i.get(['supplierName']) for i in sellers_result['value'] if
+                                 i.get(['supplierName']) is not None}
             for item in items_result['data']['products']:
                 item['sellerName'] = seller_id_to_name.get(item['id'])
             result = items_result['data']['products']
