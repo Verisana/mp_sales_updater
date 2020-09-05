@@ -13,7 +13,7 @@ from django.db.models.base import ModelBase
 from django.utils.timezone import now
 
 from core.exceptions import SalesUpdaterError
-from core.models import ItemCategory, Item, Brand, Colour, Image, Seller, ItemPosition
+from core.models import ItemCategory, Item, Brand, Colour, Image, Seller, ItemPosition, ItemRevision
 from core.mp_scrapers.wildberries.wildberries_base import WildberriesBaseScraper, save_object_for_logging
 from core.mp_scrapers.wildberries.wildberries_revisions import WildberriesRevisionScraper
 from core.types import RequestBody
@@ -96,8 +96,10 @@ class WildberriesItemBase(WildberriesBaseScraper):
             except Item.MultipleObjectsReturned:
                 logger.error(f'Something is wrong. You should get one object for params: {get_params}')
                 existing_items = Item.objects.filter(**get_params)
-                existing_item = existing_items[0]
-                for duplicate_item in existing_items[1:]:
+                existing_item = existing_items.earliest('created_at')
+                for duplicate_item in existing_items.exclude(pk=existing_item.pk):
+                    # Delete existing relations in all duplicates
+                    self._change_revisions_positions_item(duplicate_item, existing_item)
                     duplicate_item.delete()
 
             self._update_existing_item(existing_item, item, fields_to_update)
@@ -138,6 +140,7 @@ class WildberriesItemBase(WildberriesBaseScraper):
 
             get_params = {'marketplace_id': item['marketplace_id'], 'marketplace_source': self.marketplace_source}
             try:
+                old_items.append(Item.objects.get(**{'marketplace_id': 12731124, 'marketplace_source': self.marketplace_source}))
                 old_items.append(Item.objects.get(**get_params))
             except Item.DoesNotExist:
                 new_items.append(Item(**create_params))
@@ -263,6 +266,16 @@ class WildberriesItemBase(WildberriesBaseScraper):
         else:
             colours[-1].append(colour_pk)
 
+    @staticmethod
+    def _change_revisions_positions_item(duplicate_item: Item, existing_item: Item):
+        revisions, positions = duplicate_item.item_revisions.all(), duplicate_item.item_positions.all()
+        for revision in revisions:
+            revision.item = existing_item
+        for position in positions:
+            position.item = existing_item
+        ItemRevision.objects.bulk_update(revisions, ['item'])
+        ItemPosition.objects.bulk_update(positions, ['item'])
+
 
 class WildberriesItemScraper(WildberriesItemBase):
     def __init__(self):
@@ -376,7 +389,10 @@ class WildberriesItemScraper(WildberriesItemBase):
             empty_items_info = self._get_empty_items(empty_ids, category)
             empty_items = self.add_empty_items_to_db(empty_items_info)
             self._add_category_and_imgs(empty_items, category, img_id_to_objs)
-
+        else:
+            # We should block execution to avoid concurrency in functions: self.add_empty_items_to_db and
+            # self.add_items_to_db
+            self.add_empty_items_to_db([])
         full_items = self.add_items_to_db(full_items_info)
         self._add_category_and_imgs(full_items, category, img_id_to_objs)
 

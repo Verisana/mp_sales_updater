@@ -32,7 +32,11 @@ class TelegramHandler(logging.Handler):
             'disable_notification': self.disable_notification,
         }
 
-        self.bot.send_message(text=f'{record.exc_info[0].__name__}: {record.message}', **params)
+        try:
+            self.bot.send_message(text=f'{record.exc_info[0].__name__}: {record.message}', **params)
+        except TypeError:
+            self.bot.send_message(text=f'{record.message}', **params)
+
         document = telegram.InputFile(BytesIO(text.encode()), filename=f'{record.levelname}_{record.filename}_'
                                                                        f'{record.lineno}.json')
         self.bot.send_document(document=document, **params)
