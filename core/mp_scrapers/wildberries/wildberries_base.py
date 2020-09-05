@@ -64,6 +64,7 @@ class WildberriesProcessPool:
                         logger.info(f'Multiprocessing pool stopping. Got result code -1')
                         break
                 except KeyboardInterrupt:
+                    logger.info(f'Multiprocessing pool stopping. Got KeyboardInterrupt')
                     break
 
         if self.last_error is not None:
