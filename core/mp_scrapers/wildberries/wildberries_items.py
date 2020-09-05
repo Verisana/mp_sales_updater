@@ -191,7 +191,7 @@ class WildberriesItemBase(WildberriesBaseScraper):
                       colour_id_to_idx: Dict[Union[str, int], List[int]],
                       seller_id_to_idx: Dict[Union[str, int], List[int]], items_info: List[Dict], item: Dict,
                       colour: Dict) -> None:
-        new_item_info = {'name': item['name'], 'marketplace_id': item['id'], 'root_id': item['root'], 'brand': None,
+        new_item_info = {'name': item['name'][:255], 'marketplace_id': item['id'], 'root_id': item['root'], 'brand': None,
                          'colour': None, 'size_name': '', 'size_orig_name': '', 'seller': None,
                          'is_digital': item['isDigital'], 'is_adult': item['isAdult']}
         if item['sizes']:
