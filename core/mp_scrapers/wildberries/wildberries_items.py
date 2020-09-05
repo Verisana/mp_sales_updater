@@ -52,7 +52,7 @@ class WildberriesItemBase(WildberriesBaseScraper):
         while True:
             counter += 1
             json_result, _, _ = await self.connector.get_page(RequestBody(url, method='get',
-                                                              parsing_type='json', headers=headers))
+                                                                          parsing_type='json', headers=headers))
             if self._is_valid_result(json_result):
                 return json_result
             elif counter > 10:
@@ -86,7 +86,7 @@ class WildberriesItemBase(WildberriesBaseScraper):
                              'is_adult': item['is_adult']}
             get_params = {'marketplace_id': item['marketplace_id'], 'marketplace_source': self.marketplace_source}
             if i > 0:
-                last_marketplace_id = items_info[i-1]['marketplace_id']
+                last_marketplace_id = items_info[i - 1]['marketplace_id']
             try:
                 existing_item = Item.objects.get(**get_params)
             except Item.DoesNotExist:
@@ -191,8 +191,8 @@ class WildberriesItemBase(WildberriesBaseScraper):
                       colour_id_to_idx: Dict[Union[str, int], List[int]],
                       seller_id_to_idx: Dict[Union[str, int], List[int]], items_info: List[Dict], item: Dict,
                       colour: Dict) -> None:
-        new_item_info = {'name': item['name'][:255], 'marketplace_id': item['id'], 'root_id': item['root'], 'brand': None,
-                         'colour': None, 'size_name': '', 'size_orig_name': '', 'seller': None,
+        new_item_info = {'name': item['name'][:255], 'marketplace_id': item['id'], 'root_id': item['root'],
+                         'brand': None, 'colour': None, 'size_name': '', 'size_orig_name': '', 'seller': None,
                          'is_digital': item['isDigital'], 'is_adult': item['isAdult']}
         if item['sizes']:
             new_item_info['size_name'] = item['sizes'][0]['name']
@@ -298,7 +298,7 @@ class WildberriesItemScraper(WildberriesItemBase):
             num_items = ItemCategory.objects.filter(
                 marketplace_source=self.marketplace_source, is_deleted=False,
                 start_parse_time__isnull=True, next_parse_time__lte=now()).count()
-            logger.info(f'Remained {num_items} operation elapsed {time.time()-start:0.2f}')
+            logger.info(f'Remained {num_items} operation elapsed {time.time() - start:0.2f}')
 
             category = ItemCategory.objects.select_for_update(skip_locked=True).exclude(children__isnull=False).filter(
                 marketplace_source=self.marketplace_source, is_deleted=False,
@@ -327,8 +327,8 @@ class WildberriesItemScraper(WildberriesItemBase):
                 break
             else:
                 self._update_num_items_in_category(bs, category)
-                self._process_items_on_page(bs, category, counter-1)
-            logger.info(f'\tPage number {counter} for {category} done in {time.time()-start:0.2f} sec.')
+                self._process_items_on_page(bs, category, counter - 1)
+            logger.info(f'\tPage number {counter} for {category} done in {time.time() - start:0.2f} sec.')
             counter += 1
             if debug:
                 break
@@ -428,7 +428,8 @@ class WildberriesItemScraper(WildberriesItemBase):
 
         result = []
         if items_result['state'] == 0 and sellers_result['resultState'] == 0 and items_result['data']['products']:
-            seller_id_to_name = {i['cod1S']: i['supplierName'] for i in sellers_result['value']}
+            seller_id_to_name = {i['cod1S']: i.get['supplierName'] for i in sellers_result['value'] if
+                                 i.get['supplierName'] is not None}
             for item in items_result['data']['products']:
                 item['sellerName'] = seller_id_to_name.get(item['id'])
             result = items_result['data']['products']
@@ -466,7 +467,7 @@ class WildberriesItemScraper(WildberriesItemBase):
         assert len(items) == len(mp_ids)
         new_positions = []
         for i, mp_id in enumerate(mp_ids):
-            position = page_num * self.config.items_per_page + (i+1)
+            position = page_num * self.config.items_per_page + (i + 1)
             item = next(filter(lambda x: x.marketplace_id == mp_id, items))
             new_positions.append(ItemPosition(item=item, category=category, position_num=position))
         ItemPosition.objects.bulk_create(new_positions)
