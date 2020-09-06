@@ -37,6 +37,7 @@ services:
       - ./magic-stat.ru.key:/etc/ssl/magic-stat.ru.key
     depends_on:
       - django
+    restart: always
 
 volumes:
   postgres_data:
