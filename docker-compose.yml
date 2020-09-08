@@ -15,7 +15,6 @@ services:
       - media_volume:/home/gr1902/mp_sales_updater/media
     ports:
       - 8000:8000
-    restart: always
   db:
     image: postgres:12.4
     volumes:
