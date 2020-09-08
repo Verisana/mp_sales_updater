@@ -14,8 +14,8 @@ WILDBERRIES_CONFIG = ScraperConfigs(
     # Request size becomes too large to handle for big ids
     bulk_item_step=800,
     use_proxy=True,
-    items_parse_frequency=timedelta(hours=24),
-    revisions_parse_frequency=timedelta(hours=3),
+    items_parse_frequency=timedelta(days=15),
+    revisions_parse_frequency=timedelta(hours=12),
     categories_parse_frequency=timedelta(days=14),
     images_parse_frequency=timedelta(days=7),
     items_per_page=100,
