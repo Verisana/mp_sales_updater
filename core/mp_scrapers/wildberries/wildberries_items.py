@@ -280,9 +280,9 @@ class WildberriesItemBase(WildberriesBaseScraper):
 class WildberriesItemScraper(WildberriesItemBase):
     def __init__(self):
         super().__init__()
-        logger.debug(f'Start check parse times')
+        logger.info(f'Start check parse times')
         self._check_parse_times()
-        logger.debug(f'Stop check parse times')
+        logger.info(f'Stop check parse times')
         self.revision_scraper = WildberriesRevisionScraper()
 
     @staticmethod
