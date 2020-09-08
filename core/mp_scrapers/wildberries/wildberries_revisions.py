@@ -34,6 +34,9 @@ class WildberriesRevisionScraper(WildberriesBaseScraper):
 
         checked_items, checked_info = [], []
         for item, item_info in zip(items, items_info):
+            if item.next_parse_time is None:
+                item.next_parse_time = now()
+                item.save()
             if item.next_parse_time <= now():
                 checked_items.append(item)
                 checked_info.append(item_info)
