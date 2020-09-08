@@ -8,8 +8,9 @@ from core.mp_scrapers.wildberries.wildberries_items import WildberriesItemScrape
 def start_profiler():
     scraper = WildberriesItemScraper()
     category = ItemCategory.objects.get(id=2739)
+    # category = scraper._get_category()
     with QueryProfiler(QueryProfilerLevel.QUERY_SIGNATURE) as qp:
-        scraper._process_all_pages(category, counter=10, debug=True)
+        scraper._process_all_pages(category, counter=1, debug=True)
 
     print(qp.query_profiled_data.summary)
     print('\n')
