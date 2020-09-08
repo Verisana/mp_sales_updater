@@ -21,9 +21,15 @@ def get_mp_wb() -> Marketplace:
     return mp_wildberries
 
 
-def save_object_for_logging(obj: Any, name: str) -> None:
-    with open(f'logs/{name}', 'wb') as file:
-        pickle.dump(obj, file)
+def save_object_for_logging(obj: Any, name: str, type: str = 'pickle') -> None:
+    if type == 'pickle':
+        with open(f'logs/{name}', 'wb') as file:
+            pickle.dump(obj, file)
+    elif type == 'string':
+        with open(f'logs/{name}', 'w') as file:
+            file.write(obj)
+    else:
+        logger.error(f'Wrong argument for function save_object_for_logging. Check all calls')
 
 
 class WildberriesBaseScraper(ABC):
