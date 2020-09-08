@@ -56,10 +56,10 @@ class WildberriesItemBase(WildberriesBaseScraper):
             if self._is_valid_result(json_result):
                 return json_result
             elif counter > 10:
-                save_object_for_logging(url, f'requested_URL.p')
-                save_object_for_logging(json_result, f'returned_json.p')
                 logger.warning(f"Could not get json api for all requested items "
                                f"for indices count {len(indices)}")
+                save_object_for_logging(url, f'requested_URL.p')
+                save_object_for_logging(json_result, f'returned_json.txt', type='str')
                 return json_result
 
     def add_items_to_db(self, items: List[Dict]) -> List[Item]:
@@ -116,8 +116,8 @@ class WildberriesItemBase(WildberriesBaseScraper):
                 try:
                     new_items = Item.objects.bulk_create(new_items)
                 except DataError as e:
-                    save_object_for_logging(new_items, 'corrupted_new_items.p')
                     logger.exception(e)
+                    save_object_for_logging(new_items, 'corrupted_new_items.p')
                     raise e
                 for new_item, colour_pks in zip(new_items, colours_new_items):
                     new_item.colours.add(*colour_pks)
@@ -357,9 +357,9 @@ class WildberriesItemScraper(WildberriesItemBase):
             if all_items is not None:
                 logger.info(f'Empty category {category}')
             else:
-                save_object_for_logging(bs, f'bs_{category}.txt')
                 logger.error(f'Something is wrong while getting divGoodsNotFound for {category}. '
                              f'Beautiful Soup response has been saved')
+                save_object_for_logging(bs, f'bs_{category}.txt')
                 raise SalesUpdaterError
             return True
         else:
