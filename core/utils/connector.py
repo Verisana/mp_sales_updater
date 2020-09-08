@@ -38,32 +38,35 @@ class Connector:
             while True:
                 for i in range(self.try_count):
                     try:
-                        response = await self._send_request(request_info, session)
-                    except (aiohttp.ClientError, asyncio.TimeoutError) as e:
-                        logger.warning(f'aiohttp error or asyncio_timeout: {e}')
-                        continue
-
-                    is_captcha = False
-                    if request_info.parsing_type == 'bs':
                         try:
-                            content = await response.content.read()
-                        except aiohttp.ClientPayloadError as e:
-                            logger.warning(f'ClientPayloadError: {e} for bs parsing. Try another attempt')
+                            response = await self._send_request(request_info, session)
+                        except aiohttp.ClientError as e:
+                            logger.warning(f'aiohttp error: {e}')
                             continue
-                        bs, is_captcha = self._parse_to_bs(content, request_info)
-                        return bs, is_captcha, response.status
-                    elif request_info.parsing_type == 'json':
-                        try:
-                            json_result = await self._parse_to_json(response)
-                            return json_result, is_captcha, response.status
-                        except json.JSONDecodeError as e:
-                            logger.warning(
-                                f'JSONDecoderError: {e.msg}')
-                    elif request_info.parsing_type == 'image':
-                        content = await response.content.read()
-                        return content, None, response.status
-                    else:
-                        logger.warning('Unrecognized type of parsing')
+
+                        is_captcha = False
+                        if request_info.parsing_type == 'bs':
+                            try:
+                                content = await response.content.read()
+                            except aiohttp.ClientPayloadError as e:
+                                logger.warning(f'ClientPayloadError: {e} for bs parsing. Try another attempt')
+                                continue
+                            bs, is_captcha = self._parse_to_bs(content, request_info)
+                            return bs, is_captcha, response.status
+                        elif request_info.parsing_type == 'json':
+                            try:
+                                json_result = await self._parse_to_json(response)
+                                return json_result, is_captcha, response.status
+                            except json.JSONDecodeError as e:
+                                logger.warning(
+                                    f'JSONDecoderError: {e.msg}')
+                        elif request_info.parsing_type == 'image':
+                            content = await response.content.read()
+                            return content, None, response.status
+                        else:
+                            logger.warning('Unrecognized type of parsing')
+                    except asyncio.TimeoutError as e:
+                        logger.warning(f'Asyncio timeout error occurred {e}. Try another attempt')
                 logger.error(f"All attempts to connect for {request_info.url[:120]} and {request_info.url[-10:]} "
                              f"have been used. Trying another {self.try_count} attempts")
 
