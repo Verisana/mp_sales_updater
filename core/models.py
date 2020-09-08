@@ -51,11 +51,8 @@ class Item(StandardFields):
     size_orig_name = models.CharField(max_length=128, blank=True, null=True)
     is_adult = models.BooleanField(default=False)
 
-    items_next_parse_time = models.DateTimeField(null=True, blank=True, db_index=True)
-    items_start_parse_time = models.DateTimeField(null=True, blank=True, db_index=True)
-
-    revisions_next_parse_time = models.DateTimeField(null=True, blank=True, db_index=True)
-    revisions_start_parse_time = models.DateTimeField(null=True, blank=True, db_index=True)
+    next_parse_time = models.DateTimeField(null=True, blank=True, db_index=True)
+    start_parse_time = models.DateTimeField(null=True, blank=True, db_index=True)
 
     is_deleted = models.BooleanField(default=False, db_index=True)
 
@@ -104,8 +101,11 @@ class ItemCategory(MPTTModel, StandardFields):
     marketplace_category_url = models.CharField(max_length=256, blank=True)
     marketplace_items_in_category = models.IntegerField(default=0)
 
-    next_parse_time = models.DateTimeField(null=True, blank=True)
-    start_parse_time = models.DateTimeField(null=True, blank=True)
+    item_next_parse_time = models.DateTimeField(null=True, blank=True, db_index=True)
+    item_start_parse_time = models.DateTimeField(null=True, blank=True, db_index=True)
+
+    category_next_parse_time = models.DateTimeField(null=True, blank=True)
+    category_start_parse_time = models.DateTimeField(null=True, blank=True)
 
     class MPTTMeta:
         order_insertion_by = ['name']

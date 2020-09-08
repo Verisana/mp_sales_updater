@@ -82,7 +82,7 @@ class WildberriesItemBase(WildberriesBaseScraper):
                              'marketplace_source': self.marketplace_source, 'root_id': item['root_id'],
                              'brand': item['brand'], 'size_name': item['size_name'],
                              'size_orig_name': item['size_orig_name'], 'seller': item['seller'],
-                             'revisions_next_parse_time': current_time, 'is_adult': item['is_adult']}
+                             'next_parse_time': current_time, 'is_adult': item['is_adult']}
             get_params = {'marketplace_id': item['marketplace_id'], 'marketplace_source': self.marketplace_source}
             if i > 0:
                 last_marketplace_id = items_info[i - 1]['marketplace_id']
@@ -136,7 +136,7 @@ class WildberriesItemBase(WildberriesBaseScraper):
         self.lock.acquire()
         for i, item in enumerate(items):
             create_params = {'name': item['name'], 'marketplace_id': item['marketplace_id'],
-                             'marketplace_source': self.marketplace_source, 'revisions_next_parse_time': current_time}
+                             'marketplace_source': self.marketplace_source, 'next_parse_time': current_time}
 
             get_params = {'marketplace_id': item['marketplace_id'], 'marketplace_source': self.marketplace_source}
             try:
@@ -287,12 +287,12 @@ class WildberriesItemScraper(WildberriesItemBase):
 
     @staticmethod
     def _check_parse_times():
-        categories = ItemCategory.objects.filter(Q(start_parse_time__isnull=False) | Q(next_parse_time__isnull=True))
+        categories = ItemCategory.objects.filter(Q(item_start_parse_time__isnull=False) | Q(item_next_parse_time__isnull=True))
         current_time = now()
         for category in categories:
-            category.start_parse_time = None
-            category.next_parse_time = current_time
-        ItemCategory.objects.bulk_update(categories, ['start_parse_time', 'next_parse_time'])
+            category.item_start_parse_time = None
+            category.item_next_parse_time = current_time
+        ItemCategory.objects.bulk_update(categories, ['item_start_parse_time', 'item_next_parse_time'])
 
     def update_from_mp(self, start_from: int = None) -> int:
         start = time.time()
@@ -310,14 +310,14 @@ class WildberriesItemScraper(WildberriesItemBase):
             start = time.time()
             num_items = ItemCategory.objects.filter(
                 marketplace_source=self.marketplace_source, is_deleted=False,
-                start_parse_time__isnull=True, next_parse_time__lte=now()).count()
+                item_start_parse_time__isnull=True, item_next_parse_time__lte=now()).count()
             logger.info(f'Remained {num_items} operation elapsed {time.time() - start:0.2f}')
 
             category = ItemCategory.objects.select_for_update(skip_locked=True).exclude(children__isnull=False).filter(
                 marketplace_source=self.marketplace_source, is_deleted=False,
-                start_parse_time__isnull=True, next_parse_time__lte=now()).first()
+                item_start_parse_time__isnull=True, item_next_parse_time__lte=now()).first()
             if category is not None:
-                category.start_parse_time = now()
+                category.item_start_parse_time = now()
                 category.save()
                 return category
 
@@ -332,8 +332,8 @@ class WildberriesItemScraper(WildberriesItemBase):
                 continue
             is_no_items = self._is_items_not_found(bs, category, status_code)
             if status_code == 404 or is_no_items:
-                category.next_parse_time = now() + self.config.items_parse_frequency
-                category.start_parse_time = None
+                category.item_next_parse_time = now() + self.config.items_parse_frequency
+                category.item_start_parse_time = None
                 if is_no_items:
                     category.marketplace_items_in_category = 0
                 category.save()

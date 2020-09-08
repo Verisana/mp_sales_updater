@@ -34,7 +34,7 @@ class WildberriesRevisionScraper(WildberriesBaseScraper):
 
         checked_items, checked_info = [], []
         for item, item_info in zip(items, items_info):
-            if item.revisions_next_parse_time <= now():
+            if item.next_parse_time <= now():
                 checked_items.append(item)
                 checked_info.append(item_info)
 
@@ -62,13 +62,12 @@ class WildberriesRevisionScraper(WildberriesBaseScraper):
         with transaction.atomic():
             filtered_items_for_update = Item.objects.select_related('marketplace_source').select_for_update(
                 skip_locked=True).filter(
-                is_deleted=False, marketplace_source=self.marketplace_source, revisions_next_parse_time__lte=now(),
-                revisions_start_parse_time__isnull=True).order_by(
-                'revisions_next_parse_time')[:self.config.bulk_item_step]
+                is_deleted=False, marketplace_source=self.marketplace_source, next_parse_time__lte=now(),
+                start_parse_time__isnull=True)[:self.config.bulk_item_step]
 
             for item in filtered_items_for_update:
                 item.revisions_start_parse_time = now()
-            Item.objects.bulk_update(filtered_items_for_update, ['revisions_start_parse_time'])
+            Item.objects.bulk_update(filtered_items_for_update, ['start_parse_time'])
 
             return filtered_items_for_update, [item.marketplace_id for item in filtered_items_for_update]
 
@@ -117,8 +116,8 @@ class WildberriesRevisionScraper(WildberriesBaseScraper):
         items_to_update = []
         assert len(new_revisions) == len(items)
         for revision, item in zip(new_revisions, items):
-            item.revisions_next_parse_time = now() + self.config.revisions_parse_frequency
-            item.revisions_start_parse_time = None
+            item.next_parse_time = now() + self.config.revisions_parse_frequency
+            item.start_parse_time = None
             items_to_update.append(item)
-        Item.objects.bulk_update(items_to_update, ['revisions_next_parse_time',
-                                                   'revisions_start_parse_time'])
+        Item.objects.bulk_update(items_to_update, ['next_parse_time',
+                                                   'start_parse_time'])
