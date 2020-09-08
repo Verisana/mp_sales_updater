@@ -302,7 +302,7 @@ class WildberriesItemScraper(WildberriesItemBase):
             return -1
         logger.info(f'Start update from mp for {category}')
         self._process_all_pages(category)
-        logger.debug(f'{category} elapsed {(time.time() - start):0.0f} seconds')
+        logger.info(f'{category} elapsed {(time.time() - start):0.0f} seconds')
         return 0
 
     def _get_category(self) -> ItemCategory:
