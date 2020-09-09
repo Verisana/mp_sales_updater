@@ -1,7 +1,7 @@
 version: "3.8"
 services:
-  django:
-    image: gr1902/mp_sales_updater
+  web:
+    image: gr1902/web
     build:
       context: .
       dockerfile: Dockerfile.prod
@@ -16,6 +16,22 @@ services:
       - static_volume:/home/gr1902/mp_sales_updater/static
       - media_volume:/home/gr1902/mp_sales_updater/media
     restart: always
+    depends_on:
+      - db
+  item_update:
+    image: gr1902/web
+    build:
+      context: .
+      dockerfile: Dockerfile.prod
+    env_file:
+      - .env.prod
+    command: ./manage.py update_data wildberries items --cpu_multiplayer 0.8
+    volumes:
+      - ./core/utils/webshare_proxies.txt:/home/gr1902/mp_sales_updater/core/utils/webshare_proxies.txt
+      - ./logs:/home/gr1902/mp_sales_updater/logs
+      - static_volume:/home/gr1902/mp_sales_updater/static
+      - media_volume:/home/gr1902/mp_sales_updater/media
+    restart: "no"
     depends_on:
       - db
   db:
@@ -36,7 +52,7 @@ services:
       - ./magic-stat.ru.crt:/etc/ssl/magic-stat.ru.crt
       - ./magic-stat.ru.key:/etc/ssl/magic-stat.ru.key
     depends_on:
-      - django
+      - web
     restart: always
 
 volumes:
