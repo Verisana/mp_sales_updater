@@ -59,7 +59,7 @@ class WildberriesItemBase(WildberriesBaseScraper):
                 logger.warning(f"Could not get json api for all requested items "
                                f"for indices count {len(indices)}")
                 save_object_for_logging(url, f'requested_URL.p')
-                save_object_for_logging(json_result, f'returned_json.txt', type='str')
+                save_object_for_logging(json_result, f'returned_json.txt', type='string')
                 return json_result
 
     def add_items_to_db(self, items: List[Dict]) -> List[Item]:
