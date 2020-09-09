@@ -4,7 +4,7 @@ RUN useradd --create-home gr1902 && chown -R gr1902 /home/gr1902/
 WORKDIR /home/gr1902/mp_sales_updater
 
 # install psycopg2 dependencies and other packages
-RUN apt-get update && apt-get install -y python3-dev libpq-dev netcat locales nano
+RUN apt-get update && apt-get install -y python3-dev libpq-dev netcat locales nano openssh-server
 
 # Locale
 RUN sed -i -e \
@@ -27,7 +27,7 @@ RUN pip install --no-cache-dir --upgrade pip \
     && pip install --no-cache-dir -r requirements.txt
 
 COPY --chown=gr1902 . .
-RUN chmod +x .docker/entrypoint.prod.sh && chmod +x .docker/gunicorn_start.sh
+RUN chmod +x .docker/entrypoint.prod.sh && chmod +x .docker/gunicorn_start.sh && service ssh restart && zsh
 
 USER gr1902
 
