@@ -1,5 +1,5 @@
 class Node:
-    def __init__(self, name, marketplace_url=None, parent=None, db_id=None):
+    def __init__(self, name, marketplace_url=None, parent=None, db_id=None, items_number=0):
         self.name = name.lower().strip(' ').strip('\n')
 
         url_end = marketplace_url.find('?')
@@ -11,6 +11,7 @@ class Node:
         self.descendants = []
         self.db_id = db_id
         self.parent = parent
+        self.items_number = items_number
 
     def __str__(self):
         return self.name

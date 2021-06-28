@@ -5,10 +5,12 @@ from typing import List
 
 from bs4 import BeautifulSoup
 from bs4.element import Tag
+from django.utils.timezone import now
 from mptt.querysets import TreeQuerySet
 
+from core.exceptions import SalesUpdaterError
 from core.models import ItemCategory
-from core.mp_scrapers.wildberries.wildberries_base import WildberriesBaseScraper
+from core.mp_scrapers.wildberries.wildberries_base import WildberriesBaseScraper, save_object_for_logging
 from core.types import RequestBody
 from core.utils.trees import Node
 from core.utils.logging_helpers import get_logger
@@ -37,7 +39,7 @@ class WildberriesCategoryScraper(WildberriesBaseScraper):
         except KeyboardInterrupt:
             return -1
 
-        with open('parsed_nodes.p', 'wb') as f:
+        with open(f"{now().astimezone().strftime('%Y%m%d')}_parsed_nodes.p", 'wb') as f:
             pickle.dump(parsed_nodes, f)
 
         self._check_db_consistency()
@@ -55,7 +57,7 @@ class WildberriesCategoryScraper(WildberriesBaseScraper):
         return 0
 
     def _parse_bs_response(self, bs: BeautifulSoup) -> List[Node]:
-        root_node_tags = bs.find('ul', class_='topmenus').findAll(self._check_root_matching)
+        root_node_tags = bs.find('ul', class_='topmenus').find_all(self._check_root_matching)
 
         root_nodes = []
         for tag in root_node_tags:
@@ -88,26 +90,35 @@ class WildberriesCategoryScraper(WildberriesBaseScraper):
     def _parse_all_descendants(self, nodes: List[Node], level: int = 0) -> List[Node]:
         for i, node in enumerate(nodes):
             # For DEBUGGING
-            if level in [0, 1]:
+            if level in [0, 1, 2]:
                 message = f'{i + 1}/{len(nodes)} - {node.name}, level {level}'
                 if level == 0:
                     logger.debug(message)
                 elif level == 1:
                     logger.debug('\t'+message)
+                elif level == 2:
+                    logger.debug('\t\t'+message)
             # Прям до сюда
 
             descendants_bs, is_captcha, _ = asyncio.run(self.connector.get_page(
                 RequestBody(node.marketplace_url, 'get')))
 
+            # Update number of items in category
+            items_number = self._get_items_number(descendants_bs)
+            current_category = ItemCategory.objects.get(id=node.db_id)
+            current_category.marketplace_items_in_category = items_number
+            current_category.save()
+
             if level == 0:
                 all_items = self._extract_catalogs_from_root(descendants_bs)
                 for item in all_items:
                     url = self.config.base_url + item.find('a')['href']
-                    item_name = item.text if item.text.strip('\n') else item.find('a')['title']
-                    node.descendants.append(self._get_node(item_name, url, node, level))
+                    item_name = item.find('a').text.strip('\n') if item.find('a').text.strip('\n') else item.find(
+                        'a')['title']
+                    node.descendants.append(self._get_node(item_name, url, node))
             else:
                 try:
-                    all_items = descendants_bs.find('div', class_='catalog-sidebar').findAll('li')
+                    all_items = descendants_bs.find('div', class_='catalog-sidebar').find_all('li')
                 except AttributeError:
                     logger.warning("Can't find catalog sidebar")
                     continue
@@ -123,36 +134,46 @@ class WildberriesCategoryScraper(WildberriesBaseScraper):
                         continue
                     if is_descendants_started:
                         url = self.config.base_url + item.find('a')['href']
-                        node.descendants.append(self._get_node(item.text, url, node, level))
+                        node.descendants.append(self._get_node(item.text, url, node))
             self._parse_all_descendants(node.descendants, level + 1)
         return nodes
 
     @staticmethod
+    def _get_items_number(bs: BeautifulSoup) -> int:
+        num_tag = bs.find_all('span', class_='goods-count')
+        if len(num_tag) == 1:
+            # Just parsing number in tag
+            return int(num_tag[0].text.strip('\n').strip(' ').split(' ')[0])
+        else:
+            return 0
+
+    @staticmethod
     def _extract_catalogs_from_root(descendants_bs: BeautifulSoup) -> List[Tag]:
-        all_items = descendants_bs.find('ul', class_='maincatalog-list-3')
-        if all_items is None:
-            all_items = descendants_bs.find('ul', class_='maincatalog-list-2')
-        if all_items is None:
-            all_items = descendants_bs.find('ul', class_='maincatalog-list-1')
+        all_items = descendants_bs.find('ul', class_='maincatalog-list-2')
+        if all_items is not None:
+            return all_items.findAll('li', recursive=False)
 
-        if all_items is None:
-            category_banners = descendants_bs.findAll('div', class_='banners-zones')
-            # Looking for banners "catalog" in URL and certain class in tag to exclude irrelevant items
-            return list(filter(
-                lambda tag: 'j-banner-shown-stat' in tag.find('a')['class'] and 'catalog' in tag.find('a')['href'],
-                category_banners))
+        category_banners = descendants_bs.findAll('div', class_='banners-zones')
+        # Looking for banners "catalog" in URL and certain class in tag to exclude irrelevant items
+        all_items = list(filter(
+            lambda tag: 'j-banner-shown-stat' in tag.find('a')['class'] and 'catalog' in tag.find('a')['href'],
+            category_banners))
+        if len(all_items) > 0:
+            return all_items
 
-        return all_items.findAll('li')
+        logger.error('Something is wrong while getting catalog from root in _extract_catalogs_from_root '
+                     'Corresponding descendants_bs is saved')
+        save_object_for_logging(descendants_bs.prettify(), 'descendants_bs_root.html', type='string')
+        raise SalesUpdaterError
 
-    def _get_node(self, name: str, url: str, parent: Node, level: int) -> Node:
+    def _get_node(self, name: str, url: str, parent: Node) -> Node:
         new_node = Node(name, url, parent=parent)
-        category_id = self._save_node_in_db(new_node, parent, level)
+        category_id = self._save_node_in_db(new_node, parent)
         new_node.db_id = category_id
         return new_node
 
-    def _save_node_in_db(self, node: Node, parent_node: Node, level: int) -> int:
-        parent = ItemCategory.objects.get(name=parent_node.name, marketplace_category_url=parent_node.marketplace_url,
-                                          marketplace_source=self.marketplace_source, level=level)
+    def _save_node_in_db(self, node: Node, parent_node: Node) -> int:
+        parent = ItemCategory.objects.get(id=parent_node.db_id)
         category, _ = ItemCategory.objects.get_or_create(name=node.name, marketplace_category_url=node.marketplace_url,
                                                          marketplace_source=self.marketplace_source, parent=parent)
         return category.id
@@ -168,6 +189,8 @@ class WildberriesCategoryScraper(WildberriesBaseScraper):
             category, is_created = ItemCategory.objects.get_or_create(name=parsed_node.name,
                                                                       marketplace_source=self.marketplace_source,
                                                                       parent=parent)
+            if category.marketplace_items_in_category != parsed_node.items_number:
+                category.marketplace_items_in_category = parsed_node.items_number
             try:
                 category.marketplace_category_url = parsed_node.marketplace_url
             except AttributeError:
